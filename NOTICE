@@ -1,0 +1,35 @@
+Readbrick — local read-along ebook reader.
+
+This product bundles and/or depends on the following third-party components.
+
+────────────────────────────────────────────────────────────────────────
+Kokoro-82M  (text-to-speech model; weights are baked into the kokoro-tts image)
+    Copyright © hexgrad
+    Architecture based on StyleTTS 2 (Li et al) — https://github.com/yl4579/StyleTTS2
+    Licensed under the Apache License, Version 2.0
+    https://huggingface.co/hexgrad/Kokoro-82M
+
+    Licensed under the Apache License, Version 2.0 (the "License"); you may
+    not use these files except in compliance with the License. You may obtain
+    a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+    WARRANTIES OR CONDITIONS OF ANY KIND.
+
+────────────────────────────────────────────────────────────────────────
+misaki  (grapheme-to-phoneme front-end used by Kokoro)
+    Copyright © hexgrad — https://github.com/hexgrad/misaki
+    Licensed under the Apache License, Version 2.0
+
+────────────────────────────────────────────────────────────────────────
+OpenDyslexic  (reading font; bundled at web/fonts/OpenDyslexic-Regular.woff2)
+    Copyright © the OpenDyslexic project — https://opendyslexic.org
+    Licensed under the SIL Open Font License, Version 1.1
+    https://openfontlicense.org
+
+────────────────────────────────────────────────────────────────────────
+espeak-ng  (phonemizer; installed as a separate binary in the kokoro-tts image)
+    https://github.com/espeak-ng/espeak-ng
+    Licensed under the GNU General Public License v3.0. Used as an unmodified,
+    separately-installed executable (Debian package); not linked into this
+    project's code.

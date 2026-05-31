@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="/web/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/web/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/web/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Readbrick" />
+  <title>Readbrick — library</title>
+  <link rel="stylesheet" href="/web/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Readbrick</h1>
+    <div class="actions">
+      <span class="user-pill" id="user-pill" title="Switch user">…</span>
+      <button class="tap primary" id="upload-btn" aria-label="Upload book">+</button>
+    </div>
+  </header>
+  <main>
+    <div id="upload-zone" class="upload-zone" hidden>
+      Drop EPUB, PDF, TXT, MOBI, or AZW3 here — or tap to pick a file
+      <input type="file" id="file-input" accept=".epub,.pdf,.txt,.mobi,.azw3" style="display:none" />
+    </div>
+    <div class="library-toolbar" hidden>
+      <input type="search" id="library-search" placeholder="Search title or author…" />
+      <div class="status-chips" id="status-chips" role="tablist"></div>
+    </div>
+    <div id="content"></div>
+  </main>
+
+  <script type="module" src="/web/js/app.js"></script>
+</body>
+</html>

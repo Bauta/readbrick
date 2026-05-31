@@ -1,0 +1,16 @@
+# Keep the Docker build context small. The reader image COPYs server/ + web/ +
+# pyproject; the kokoro image COPYs kokoro_service/. Everything else is noise.
+.venv/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+docs/
+tests/
+scripts/
+reader.egg-info/
+data/
