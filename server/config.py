@@ -31,6 +31,7 @@ def port() -> int:
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 SUPPORTED_FORMATS = {".epub", ".pdf", ".txt", ".mobi", ".azw3"}
+IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
 
 WORDS_PER_MINUTE = 150  # Audiobook narration baseline at 1.0× speed.
 

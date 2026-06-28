@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -9,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from .config import SUPPORTED_FORMATS, library_dir
+from .config import IMAGE_EXTS, SUPPORTED_FORMATS, library_dir
 from .db import connect, now
 from . import metadata as md
 
@@ -105,6 +106,7 @@ def _assemble_book(
         "language": parsed.get("language"),
         "format": fmt,
         "chapters": parsed["chapters"],
+        "images": parsed.get("images") or [],
         "isbn": parsed.get("isbn"),
         "word_count": word_count,
     }
@@ -348,6 +350,31 @@ def _is_skippable_chapter(title: str, href_base: str) -> bool:
     return any(k in blob for k in _FRONTMATTER_KEYWORDS)
 
 
+def _epub_image_resources(book) -> dict:
+    """Map basename(file_name) -> (content_bytes, lowercase_ext) for every
+    image resource in the EPUB. Used to resolve <img src> references."""
+    from ebooklib import ITEM_IMAGE
+
+    out: dict = {}
+    for item in book.get_items_of_type(ITEM_IMAGE):
+        name = item.file_name or item.get_name() or ""
+        base = _href_base(name)
+        if not base:
+            continue
+        content = item.get_content()
+        if not content:
+            continue
+        ext = Path(name).suffix.lstrip(".").lower() or "img"
+        out[base] = (content, ext)
+    return out
+
+
+def _write_book_image(book_dir: Path, fname: str, data: bytes) -> None:
+    images_dir = book_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    (images_dir / fname).write_bytes(data)
+
+
 def parse_epub(path: Path, book_dir: Path) -> dict:
     from ebooklib import epub, ITEM_DOCUMENT  # noqa: F401
 
@@ -360,6 +387,7 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
 
     _try_extract_cover(book, book_dir)
 
+    image_resources = _epub_image_resources(book)
     toc = _toc_title_map(book)
     raw: list[dict] = []
     for item in book.get_items_of_type(ITEM_DOCUMENT):
@@ -367,14 +395,13 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
         if _is_nav_document(content):
             continue  # the EPUB3 nav doc is not a chapter
         base = _href_base(item.file_name or item.get_name())
-        heading_title, doc_paragraphs, _doc_image_refs = _extract_paragraphs_from_html(content)
-        if not doc_paragraphs:
+        heading_title, doc_paragraphs, doc_image_refs = _extract_paragraphs_from_html(content)
+        if not doc_paragraphs and not doc_image_refs:
             continue
         raw.append({
-            # The author's real heading wins; fall back to the TOC name when the
-            # file has only a generic label ("SECTION 1") or no heading.
             "title": heading_title or toc.get(base) or "",
             "paragraphs": doc_paragraphs,
+            "image_refs": doc_image_refs,
             "base": base,
         })
 
@@ -382,15 +409,34 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
     if not kept:
         kept = raw  # safety: never end up with zero chapters
 
-    # Renumber paragraph idx globally across the kept chapters (contiguous), so
-    # the reader's flattened paragraph indices match.
     chapters: list[dict] = []
+    images: list[dict] = []
+    written: dict = {}   # src_base -> serving url (dedup)
     idx_counter = 0
+    img_seq = 0
     for c in kept:
         renumbered = [
             {"idx": idx_counter + i, "text": p["text"]}
             for i, p in enumerate(c["paragraphs"])
         ]
+        for ref in c["image_refs"]:
+            local = ref["after_idx"]
+            global_after = idx_counter - 1 if local < 0 else idx_counter + local
+            src_base = ref["src_base"]
+            url = written.get(src_base)
+            if url is None:
+                res = image_resources.get(src_base)
+                if res is None:
+                    continue  # unresolvable resource — skip silently
+                data, ext = res
+                if ext not in IMAGE_EXTS:
+                    continue
+                fname = f"{img_seq:04d}.{ext}"
+                _write_book_image(book_dir, fname, data)
+                img_seq += 1
+                url = f"/api/books/{book_dir.name}/images/{fname}"
+                written[src_base] = url
+            images.append({"src": url, "after_idx": global_after, "alt": ref["alt"]})
         idx_counter += len(renumbered)
         chapters.append({"title": c["title"], "paragraphs": renumbered})
 
@@ -400,6 +446,7 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
         "language": _short_lang(language),
         "isbn": isbn,
         "chapters": chapters,
+        "images": images,
     }
 
 
