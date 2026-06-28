@@ -77,7 +77,7 @@ def _parse_by_format(ext: str, stored_original: Path, book_dir: Path) -> tuple[d
         pdf_cover = book_dir / "covers" / "pdf.jpg"
         pdf_cover.parent.mkdir(parents=True, exist_ok=True)
         render_pdf_page_1(stored_original, pdf_cover)
-        return parse_pdf(stored_original), "pdf"
+        return parse_pdf(stored_original, book_dir), "pdf"
     if ext == ".txt":
         return parse_txt(stored_original), "txt"
     if ext in (".mobi", ".azw3"):
@@ -495,7 +495,9 @@ def _try_extract_cover(book, book_dir: Path) -> None:
 # ───────────────────────── PDF ─────────────────────────
 
 
-def parse_pdf(path: Path) -> dict:
+def parse_pdf(path: Path, book_dir: Path) -> dict:
+    import hashlib
+
     import pymupdf
 
     doc = pymupdf.open(str(path))
@@ -503,12 +505,34 @@ def parse_pdf(path: Path) -> dict:
     author = doc.metadata.get("author") if doc.metadata else None
 
     paragraphs: list[dict] = []
+    images: list[dict] = []
+    written: dict = {}   # bytes-digest -> serving url (dedup within the PDF)
     idx_counter = 0
+    img_seq = 0
     for page in doc:
-        text = page.get_text("text") or ""
-        for para_text in _split_pdf_text(text):
-            paragraphs.append({"idx": idx_counter, "text": para_text})
-            idx_counter += 1
+        data = page.get_text("dict")
+        for block in data.get("blocks", []):
+            btype = block.get("type")
+            if btype == 0:  # text block
+                for para_text in _split_pdf_text(_pdf_block_text(block)):
+                    paragraphs.append({"idx": idx_counter, "text": para_text})
+                    idx_counter += 1
+            elif btype == 1:  # image block
+                img_bytes = block.get("image")
+                if not img_bytes:
+                    continue
+                ext = (block.get("ext") or "png").lower()
+                if ext not in IMAGE_EXTS:
+                    continue
+                digest = hashlib.sha1(img_bytes).hexdigest()
+                url = written.get(digest)
+                if url is None:
+                    fname = f"{img_seq:04d}.{ext}"
+                    _write_book_image(book_dir, fname, img_bytes)
+                    img_seq += 1
+                    url = f"/api/books/{book_dir.name}/images/{fname}"
+                    written[digest] = url
+                images.append({"src": url, "after_idx": idx_counter - 1, "alt": ""})
 
     chapters = [{"title": "", "paragraphs": paragraphs}] if paragraphs else []
     return {
@@ -517,7 +541,19 @@ def parse_pdf(path: Path) -> dict:
         "language": None,
         "isbn": None,
         "chapters": chapters,
+        "images": images,
     }
+
+
+def _pdf_block_text(block: dict) -> str:
+    """Reconstruct a text block's content as newline-joined lines so the
+    existing _split_pdf_text join/blank-line logic can run over it."""
+    lines = []
+    for line in block.get("lines", []):
+        spans = "".join(span.get("text", "") for span in line.get("spans", []))
+        if spans:
+            lines.append(spans)
+    return "\n".join(lines)
 
 
 def _split_pdf_text(raw: str) -> list[str]:

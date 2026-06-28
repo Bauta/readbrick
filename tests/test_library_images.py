@@ -73,3 +73,29 @@ def test_parse_epub_missing_image_resource_is_skipped(tmp_path):
     parsed = library.parse_epub(src, book_dir)
     assert parsed["images"] == []
     assert not (book_dir / "images").exists()
+
+
+def test_parse_pdf_extracts_inline_image(tmp_path):
+    from server import library
+
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Hello world from page one.")
+    png = _png_bytes()
+    page.insert_image(pymupdf.Rect(72, 120, 172, 220), stream=png)
+    src = tmp_path / "doc.pdf"
+    doc.save(str(src))
+
+    book_dir = tmp_path / "pdfbook"
+    book_dir.mkdir()
+    parsed = library.parse_pdf(src, book_dir)
+
+    paras = [p["text"] for ch in parsed["chapters"] for p in ch["paragraphs"]]
+    assert any("Hello world" in t for t in paras)
+
+    assert len(parsed["images"]) >= 1
+    img = parsed["images"][0]
+    fname = img["src"].rsplit("/", 1)[-1]
+    assert (book_dir / "images" / fname).is_file()
+    # Anchored after the text that precedes it on the page (idx >= 0).
+    assert img["after_idx"] >= 0
