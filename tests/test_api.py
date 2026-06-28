@@ -382,3 +382,13 @@ def test_progress_total_seconds_round_trip(client, fixtures_dir):
     assert p["total_seconds"] == 15
     listed = client.get(f"/api/books?user_id={user['id']}").json()
     assert listed[0]["progress"]["total_seconds"] == 15
+
+
+def test_prefs_patch_show_images(client):
+    user = client.post("/api/users", json={"name": "Imogen"}).json()
+    p = client.get(f"/api/users/{user['id']}/prefs").json()
+    assert p["show_images"] == 1
+    p2 = client.patch(
+        f"/api/users/{user['id']}/prefs", json={"show_images": False}
+    ).json()
+    assert p2["show_images"] == 0

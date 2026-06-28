@@ -86,6 +86,7 @@ NEW_PROGRESS_COLUMNS = [
 
 NEW_PREFS_COLUMNS = [
     ("font_family", "TEXT NOT NULL DEFAULT 'serif'"),
+    ("show_images", "INTEGER NOT NULL DEFAULT 1"),
 ]
 
 # SQLite cannot parameterize DDL, so we manually validate column names and
@@ -99,6 +100,7 @@ _VALID_COL_TYPES = {
     "REAL",
     "BLOB",
     "INTEGER NOT NULL DEFAULT 0",
+    "INTEGER NOT NULL DEFAULT 1",
     "TEXT NOT NULL DEFAULT 'serif'",
 }
 for _col, _ty in NEW_BOOK_COLUMNS + NEW_PROGRESS_COLUMNS + NEW_PREFS_COLUMNS:

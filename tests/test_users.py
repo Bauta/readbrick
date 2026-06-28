@@ -141,3 +141,20 @@ def test_set_progress_negative_delta_clamped_to_zero():
     users.set_progress(user["id"], "bk1", 1, 0, seconds_delta=-5)
     p = users.get_progress(user["id"], "bk1")
     assert p["total_seconds"] == 10
+
+
+def test_show_images_pref_default_and_toggle():
+    from server import users
+    from server.db import init_db
+
+    init_db()
+    u = users.create_user("Imo")
+    prefs = users.get_prefs(u["id"])
+    # Default ON
+    assert prefs["show_images"] == 1
+
+    off = users.update_prefs(u["id"], {"show_images": False})
+    assert off["show_images"] == 0
+
+    on = users.update_prefs(u["id"], {"show_images": 1})
+    assert on["show_images"] == 1
