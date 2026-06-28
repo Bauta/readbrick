@@ -392,3 +392,27 @@ def test_prefs_patch_show_images(client):
         f"/api/users/{user['id']}/prefs", json={"show_images": False}
     ).json()
     assert p2["show_images"] == 0
+
+
+def test_book_image_path_blocks_traversal(client, tmp_path):
+    from server import library
+    # Escaping the images dir returns None, never a real path.
+    assert library.image_path("somebook", "../../etc/passwd") is None
+    assert library.image_path("somebook", "missing.png") is None
+
+
+def test_book_image_endpoint_serves_bytes(client):
+    from server.config import library_dir
+
+    # Stage a book dir with one image (no real upload needed).
+    book_id = "imgbook"
+    images_dir = library_dir() / book_id / "images"
+    images_dir.mkdir(parents=True)
+    (images_dir / "0000.png").write_bytes(b"\x89PNG\r\n\x1a\nDATA")
+
+    r = client.get(f"/api/books/{book_id}/images/0000.png")
+    assert r.status_code == 200
+    assert r.content == b"\x89PNG\r\n\x1a\nDATA"
+
+    missing = client.get(f"/api/books/{book_id}/images/nope.png")
+    assert missing.status_code == 404

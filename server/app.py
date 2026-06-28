@@ -170,6 +170,13 @@ def create_app() -> FastAPI:
             raise HTTPException(404)
         return FileResponse(p, media_type="image/jpeg")
 
+    @app.get("/api/books/{book_id}/images/{name}")
+    def api_book_image(book_id: str, name: str) -> FileResponse:
+        p = library.image_path(book_id, name)
+        if p is None:
+            raise HTTPException(404)
+        return FileResponse(p)
+
     @app.get("/api/books/{book_id}/covers")
     def api_book_covers(book_id: str):
         return book_detail.list_covers(book_id)

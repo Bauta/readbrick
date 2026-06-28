@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -221,6 +220,16 @@ def delete_book(book_id: str) -> bool:
 def cover_path(book_id: str) -> Optional[Path]:
     p = library_dir() / book_id / "cover.jpg"
     return p if p.exists() else None
+
+
+def image_path(book_id: str, name: str) -> Optional[Path]:
+    """Resolve <library>/<book_id>/images/<name>, rejecting path traversal.
+    Returns None if the resolved path escapes the images dir or is missing."""
+    base = (library_dir() / book_id / "images").resolve()
+    target = (base / name).resolve()
+    if base != target and base not in target.parents:
+        return None
+    return target if target.is_file() else None
 
 
 def _book_row(book_id: str) -> dict:
