@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="/web/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/web/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/web/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Readbrick" />
+  <title>Readbrick</title>
+  <link rel="stylesheet" href="/web/style.css" />
+</head>
+<body class="reader-body">
+  <header class="reader-header">
+    <button class="tap" id="back-btn" title="Library" aria-label="Back to library" onclick="location.href='/'">←</button>
+    <button class="tap" id="chapter-btn" title="Chapters" aria-label="Chapters">☰</button>
+    <div class="title" id="book-title">…</div>
+    <button class="tap" id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
+  </header>
+
+  <main class="reader-content" id="reader-content">
+    <div id="highlight-pill" aria-hidden="true"></div>
+    Loading…
+  </main>
+
+  <footer class="reader-footer" id="reader-footer">
+    <div class="reader-footer-progress">
+      <div class="progress-track"><div id="prog-fill"></div></div>
+      <span id="prog-text">0 / 0</span>
+    </div>
+    <div class="reader-footer-controls">
+      <button class="tap" id="prev-btn" title="Previous paragraph" aria-label="Previous">⏮</button>
+      <button class="play-btn" id="play-btn" title="Play/Pause" aria-label="Play">▶</button>
+      <button class="tap" id="next-btn" title="Next paragraph" aria-label="Next">⏭</button>
+      <button class="tap" id="sleep-btn" title="Sleep timer" aria-label="Sleep timer">Sleep</button>
+    </div>
+  </footer>
+
+  <div class="seek-flash" id="seek-flash-left" data-side="left" aria-hidden="true">−15s</div>
+  <div class="seek-flash" id="seek-flash-right" data-side="right" aria-hidden="true">+15s</div>
+
+  <div class="seek-hint" id="seek-hint" hidden>
+    Double-tap the edges to skip ±15s
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+  <aside class="chapter-sidebar" id="chapter-sidebar" role="dialog" aria-label="Chapter navigation" hidden>
+    <div class="chapter-sidebar-header">
+      <h2>Chapters</h2>
+      <button class="tap" id="chapter-close" aria-label="Close chapter list">✕</button>
+    </div>
+    <div class="chapter-list" id="chapter-list"></div>
+  </aside>
+
+  <aside class="settings-sheet" id="settings-sheet" role="dialog" aria-label="Settings">
+    <div class="sheet-handle"></div>
+    <h2>Settings</h2>
+
+    <div class="settings-row">
+      <label>Voice</label>
+      <select id="voice-select"></select>
+    </div>
+
+    <div class="settings-row">
+      <label>Speed <span class="value" id="speed-val">1.0×</span></label>
+      <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1" />
+    </div>
+
+    <div class="settings-row">
+      <label>Font size <span class="value" id="fs-val">18 px</span></label>
+      <input type="range" id="font-size" min="14" max="28" step="1" value="18" />
+    </div>
+
+    <div class="settings-row">
+      <label>Line height <span class="value" id="lh-val">1.6</span></label>
+      <input type="range" id="line-height" min="1.2" max="2.2" step="0.1" value="1.6" />
+    </div>
+
+    <div class="settings-row">
+      <label>Font</label>
+      <div class="font-toggle">
+        <button data-font="sans">Sans</button>
+        <button data-font="serif">Serif</button>
+        <button data-font="slab">Slab</button>
+        <button data-font="dyslexic">Dyslexic</button>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <label>Theme</label>
+      <div class="theme-toggle">
+        <button data-theme="light">Light</button>
+        <button data-theme="sepia">Sepia</button>
+        <button data-theme="dark">Dark</button>
+        <button data-theme="auto">Auto</button>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <label for="show-images-toggle">Images</label>
+      <input type="checkbox" id="show-images-toggle" class="switch" role="switch" aria-label="Show inline images" checked />
+    </div>
+  </aside>
+
+  <aside class="sleep-sheet" id="sleep-sheet" role="dialog" aria-label="Sleep timer" hidden>
+    <div class="sheet-handle"></div>
+    <h2>Sleep timer</h2>
+    <div class="sleep-presets">
+      <button class="primary" data-sleep="30">30 min</button>
+      <button class="primary" data-sleep="15">15 min</button>
+      <button class="primary" data-sleep="5">5 min</button>
+      <button class="primary" data-sleep="10">10 min</button>
+      <button class="primary" data-sleep="45">45 min</button>
+      <button class="primary" data-sleep="60">60 min</button>
+      <button class="primary" data-sleep="chapter">End of chapter</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="tap" id="sleep-cancel">Cancel</button>
+    </div>
+  </aside>
+
+  <div id="quote-toolbar" hidden>
+    <input type="text" id="quote-note-input" placeholder="Add note (optional)…" maxlength="2000" />
+    <button class="primary" id="quote-save-btn">Save</button>
+  </div>
+
+  <div id="quote-popover" hidden>
+    <p class="quote-popover-note" id="quote-popover-note"></p>
+    <p class="quote-popover-meta" id="quote-popover-meta"></p>
+    <button class="tap danger" id="quote-popover-delete">Delete</button>
+  </div>
+
+  <div id="image-lightbox" hidden></div>
+
+  <script type="module" src="/web/js/reader.js"></script>
+</body>
+</html>

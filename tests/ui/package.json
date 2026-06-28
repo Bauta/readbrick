@@ -1,0 +1,12 @@
+{
+  "name": "reader-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:unit": "node --test",
+    "test:smoke": "node immersive-smoke.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

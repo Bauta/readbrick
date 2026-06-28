@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="/web/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/web/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/web/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Readbrick" />
+  <title>Readbrick — book</title>
+  <link rel="stylesheet" href="/web/style.css" />
+</head>
+<body class="book-detail-body">
+  <header class="reader-header">
+    <button class="tap" id="back-btn" title="Library" aria-label="Back to library" onclick="location.href='/'">←</button>
+    <div class="title" id="book-title">…</div>
+    <span style="width: 44px;"></span>
+  </header>
+
+  <main class="book-detail-content" id="book-detail-content">
+    Loading…
+  </main>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+  <aside class="edit-sheet" id="edit-sheet" role="dialog" aria-label="Edit book">
+    <div class="sheet-handle"></div>
+    <h2>Edit book</h2>
+    <div class="settings-row">
+      <label>Title</label>
+      <input type="text" id="edit-title" maxlength="500" />
+    </div>
+    <div class="settings-row">
+      <label>Author</label>
+      <input type="text" id="edit-author" maxlength="200" />
+    </div>
+    <div class="settings-row">
+      <label>Published year</label>
+      <input type="number" id="edit-year" min="1" max="3000" />
+    </div>
+    <div class="settings-row">
+      <label>Description</label>
+      <textarea id="edit-description" rows="5"></textarea>
+    </div>
+    <div class="settings-row">
+      <label>Cover</label>
+      <div id="edit-covers"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="tap" id="edit-cancel">Cancel</button>
+      <button class="primary" id="edit-save">Save</button>
+    </div>
+  </aside>
+
+  <div class="modal-backdrop" id="delete-modal-backdrop" hidden>
+    <div class="modal" id="delete-modal" role="dialog" aria-label="Confirm delete">
+      <h2>Delete book?</h2>
+      <p id="delete-prompt"></p>
+      <input type="text" id="delete-confirm-input" />
+      <div class="sheet-actions">
+        <button class="tap" id="delete-cancel">Cancel</button>
+        <button class="primary danger" id="delete-confirm" disabled>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="cover-file-input" accept="image/jpeg,image/png" style="display:none" />
+
+  <script type="module" src="/web/js/book.js"></script>
+</body>
+</html>

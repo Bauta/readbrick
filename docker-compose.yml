@@ -1,0 +1,41 @@
+# Full app: the reader server + the CPU Kokoro TTS sidecar.
+#
+#   docker compose up -d            # whole app at http://127.0.0.1:8000
+#   docker compose up -d kokoro-tts # just the TTS (e.g. running the reader on the host)
+#
+# Neither service needs a GPU — Kokoro runs on the CPU, fast enough for
+# gapless read-along.
+services:
+  reader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: readbrick:dev
+    container_name: readbrick
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      - READER_KOKORO_URL=http://kokoro-tts:8005
+      - READER_KOKORO_MANAGED=1   # kokoro is managed by compose; don't shell out to docker
+      # - GOOGLE_BOOKS_API_KEY=AIzaSy...   # optional: metadata enrichment fallback
+    volumes:
+      # Library + SQLite persist on the host (shared with a host-run reader).
+      - ${READER_DATA_DIR:-$HOME/.reader}:/data
+    depends_on:
+      kokoro-tts:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # CPU-only Kokoro-82M (English). Model + 28 voices baked into the image (no
+  # volume). Always-up; needs no GPU.
+  kokoro-tts:
+    build:
+      context: .
+      dockerfile: kokoro_service/Dockerfile
+    image: reader-kokoro:dev
+    container_name: reader-kokoro
+    ports: ["127.0.0.1:8005:8005"]
+    ipc: host
+    shm_size: 2g
+    restart: unless-stopped
+    environment:
+      - KOKORO_WARMUP_VOICE=af_heart
