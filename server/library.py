@@ -239,8 +239,8 @@ def _book_row(book_id: str) -> dict:
 # ───────────────────────── EPUB ─────────────────────────
 
 
-def _extract_paragraphs_from_html(html_bytes: bytes | str) -> tuple[str, list[dict]]:
-    """Pull paragraphs + chapter title out of one EPUB document.
+def _extract_paragraphs_from_html(html_bytes: bytes | str) -> tuple[str, list[dict], list[dict]]:
+    """Pull paragraphs + chapter title + image refs out of one EPUB document.
 
     Use get_text() WITHOUT a separator. BeautifulSoup's separator argument
     inserts the given string between every NavigableString in the subtree —
@@ -253,16 +253,11 @@ def _extract_paragraphs_from_html(html_bytes: bytes | str) -> tuple[str, list[di
     then collapses any legitimate whitespace runs from the source markup
     down to single spaces and trims.
 
-    Returns (chapter_title, [{idx (within-doc, 0-based), text}, ...]).
+    Returns (chapter_title, [{idx (within-doc, 0-based), text}, ...], [{src_base, alt, after_idx}, ...]).
     Callers should renumber `idx` across multiple documents.
     """
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html_bytes, "html.parser")
-    # Title = first NON-generic heading. EPUBs often label a chapter file with a
-    # structural heading ("SECTION 1") immediately followed by the real title
-    # ("Foundations"); skip the structural label and take the real name.
-    # First NON-generic heading is the chapter title; "" if the file has only
-    # generic labels (the TOC name is used instead — see parse_epub).
     ch_title = ""
     for h in soup.find_all(["h1", "h2", "h3"]):
         t = h.get_text(strip=True)
@@ -270,12 +265,25 @@ def _extract_paragraphs_from_html(html_bytes: bytes | str) -> tuple[str, list[di
             ch_title = t
             break
     paragraphs: list[dict] = []
-    for tag in soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"]):
+    image_refs: list[dict] = []
+    for tag in soup.find_all(
+        ["p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "img", "image"]
+    ):
+        if tag.name in ("img", "image"):
+            src = tag.get("src") or tag.get("xlink:href") or tag.get("href")
+            if not src:
+                continue
+            image_refs.append({
+                "src_base": _href_base(src),
+                "alt": (tag.get("alt") or "").strip(),
+                "after_idx": len(paragraphs) - 1,
+            })
+            continue
         text = _normalize_ws(tag.get_text())
         if not text:
             continue
         paragraphs.append({"idx": len(paragraphs), "text": text})
-    return ch_title, paragraphs
+    return ch_title, paragraphs, image_refs
 
 
 # A structural label ("PART 1", "SECTION 2", "CHAPTER IV") rather than a real
@@ -359,7 +367,7 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
         if _is_nav_document(content):
             continue  # the EPUB3 nav doc is not a chapter
         base = _href_base(item.file_name or item.get_name())
-        heading_title, doc_paragraphs = _extract_paragraphs_from_html(content)
+        heading_title, doc_paragraphs, _doc_image_refs = _extract_paragraphs_from_html(content)
         if not doc_paragraphs:
             continue
         raw.append({
