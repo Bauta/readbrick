@@ -13,6 +13,7 @@ import { createPrefetchRing } from './reader/prefetch-ring.js';
 import { createAudioEngine } from './reader/audio-engine.js';
 import { initDebugOverlay } from './reader/debug-overlay.js';
 import { findCurrentWord } from './reader/word-tracker.js';
+import { groupImagesByAnchor, createFigure, initLightbox } from './reader/images.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -96,6 +97,15 @@ function renderParagraphs() {
   const pill = document.getElementById('highlight-pill');
   main.replaceChildren();
   if (pill) main.appendChild(pill);
+
+  const imagesByAnchor = groupImagesByAnchor(state.book.images || []);
+  const appendFigures = (idx) => {
+    const list = imagesByAnchor.get(idx);
+    if (!list) return;
+    for (const img of list) main.appendChild(createFigure(img));
+  };
+
+  appendFigures(-1);  // images before the first paragraph
   for (const p of state.paragraphs) {
     const node = document.createElement('p');
     node.dataset.idx = String(p.idx);
@@ -117,6 +127,7 @@ function renderParagraphs() {
     });
     main.appendChild(node);
     applyQuoteHighlights(p.idx);
+    appendFigures(p.idx);
   }
 }
 
@@ -377,6 +388,11 @@ function applyPrefs() {
   $$('.font-toggle button').forEach((b) => {
     b.classList.toggle('active', b.dataset.font === fontFamily);
   });
+
+  const showImages = (state.prefs.show_images ?? 1) ? true : false;
+  document.body.classList.toggle('hide-images', !showImages);
+  const imgToggle = $('#show-images-toggle');
+  if (imgToggle) imgToggle.checked = showImages;
 }
 
 function populateVoices() {
@@ -614,6 +630,16 @@ function setupControls() {
       patchPref({ font_family: btn.dataset.font });
     });
   });
+
+  const imgToggle = $('#show-images-toggle');
+  if (imgToggle) {
+    imgToggle.addEventListener('change', (e) => {
+      const on = e.target.checked;
+      document.body.classList.toggle('hide-images', !on);
+      patchPref({ show_images: on ? 1 : 0 });
+    });
+  }
+  initLightbox();
 
   // Settings sheet open/close with backdrop
   const sheet = $('#settings-sheet');

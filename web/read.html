@@ -100,6 +100,11 @@
         <button data-theme="auto">Auto</button>
       </div>
     </div>
+
+    <div class="settings-row">
+      <label for="show-images-toggle">Images</label>
+      <input type="checkbox" id="show-images-toggle" class="switch" role="switch" aria-label="Show inline images" checked />
+    </div>
   </aside>
 
   <aside class="sleep-sheet" id="sleep-sheet" role="dialog" aria-label="Sleep timer" hidden>
@@ -129,6 +134,8 @@
     <p class="quote-popover-meta" id="quote-popover-meta"></p>
     <button class="tap danger" id="quote-popover-delete">Delete</button>
   </div>
+
+  <div id="image-lightbox" hidden></div>
 
   <script type="module" src="/web/js/reader.js"></script>
 </body>
