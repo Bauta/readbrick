@@ -7,3 +7,6 @@ build/
 dist/
 .coverage
 gan-harness/
+
+# AI planning artifacts (kept locally, not in the repo)
+docs/superpowers/
