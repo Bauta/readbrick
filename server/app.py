@@ -175,7 +175,12 @@ def create_app() -> FastAPI:
         p = library.image_path(book_id, name)
         if p is None:
             raise HTTPException(404)
-        return FileResponse(p)
+        # Images may include SVG; serve them inert so a crafted SVG cannot run
+        # script on direct navigation (the reader embeds via <img>, unaffected).
+        return FileResponse(p, headers={
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            "X-Content-Type-Options": "nosniff",
+        })
 
     @app.get("/api/books/{book_id}/covers")
     def api_book_covers(book_id: str):

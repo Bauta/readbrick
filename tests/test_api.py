@@ -416,3 +416,21 @@ def test_book_image_endpoint_serves_bytes(client):
 
     missing = client.get(f"/api/books/{book_id}/images/nope.png")
     assert missing.status_code == 404
+
+
+def test_book_image_endpoint_security_headers(client):
+    """Image responses must carry CSP sandbox and X-Content-Type-Options headers
+    so that a crafted SVG cannot execute script on direct navigation (FIX 1)."""
+    from server.config import library_dir
+
+    book_id = "secimgbook"
+    images_dir = library_dir() / book_id / "images"
+    images_dir.mkdir(parents=True)
+    (images_dir / "0000.svg").write_bytes(
+        b'<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'
+    )
+
+    r = client.get(f"/api/books/{book_id}/images/0000.svg")
+    assert r.status_code == 200
+    assert "sandbox" in r.headers["content-security-policy"]
+    assert r.headers["x-content-type-options"] == "nosniff"

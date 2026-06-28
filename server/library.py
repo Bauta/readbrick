@@ -281,12 +281,15 @@ def _extract_paragraphs_from_html(html_bytes: bytes | str) -> tuple[str, list[di
         ["p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "img", "image"]
     ):
         if tag.name in ("img", "image"):
-            src = tag.get("src") or tag.get("xlink:href") or tag.get("href")
-            if not src:
+            raw_src = tag.get("src") or tag.get("xlink:href") or tag.get("href")
+            if not raw_src:
                 continue
+            src = raw_src[0] if isinstance(raw_src, list) else raw_src
+            raw_alt = tag.get("alt") or ""
+            alt = (raw_alt[0] if isinstance(raw_alt, list) else raw_alt).strip()
             image_refs.append({
                 "src_base": _href_base(src),
-                "alt": (tag.get("alt") or "").strip(),
+                "alt": alt,
                 "after_idx": len(paragraphs) - 1,
             })
             continue
@@ -349,14 +352,17 @@ def _is_nav_document(content: "bytes | str") -> bool:
     return bool(_NAV_TOC_RE.search(raw))
 
 
-def _is_skippable_chapter(title: str, href_base: str) -> bool:
-    """Drop untitled docs + front/back-matter (cover, title page, copyright,
-    contents, index, about, …) from the chapter list."""
-    t = (title or "").strip().lower()
-    if not t:
-        return True
-    blob = t + " " + href_base.lower()
+def _is_frontmatter(title: str, href_base: str) -> bool:
+    """Cover/title/copyright/toc/index/about/… matched against title + filename."""
+    blob = (title or "").strip().lower() + " " + href_base.lower()
     return any(k in blob for k in _FRONTMATTER_KEYWORDS)
+
+
+def _is_skippable_chapter(title: str, href_base: str) -> bool:
+    """Drop untitled docs + front/back-matter from the chapter list."""
+    if not (title or "").strip():
+        return True
+    return _is_frontmatter(title, href_base)
 
 
 def _epub_image_resources(book) -> dict:
@@ -414,7 +420,14 @@ def parse_epub(path: Path, book_dir: Path) -> dict:
             "base": base,
         })
 
-    kept = [c for c in raw if not _is_skippable_chapter(c["title"], c["base"])]
+    def _keep(c: dict) -> bool:
+        if not _is_skippable_chapter(c["title"], c["base"]):
+            return True
+        # Untitled illustration pages: keep for their images unless they are
+        # actually front/back-matter (cover/toc/…) by title or filename.
+        return bool(c["image_refs"]) and not _is_frontmatter(c["title"], c["base"])
+
+    kept = [c for c in raw if _keep(c)]
     if not kept:
         kept = raw  # safety: never end up with zero chapters
 
