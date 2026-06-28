@@ -60,6 +60,12 @@ After 3 seconds of playback without interaction the header and footer fade away 
 
 For ±15 second seeks, double-tap the side gutters (outside the text column) — left for back, right for forward. A circular `−15s` / `+15s` flashes on the tapped side. The first time you press play, a one-time toast teaches the gesture. Tap-on-a-word-to-seek (while paused) still works exactly like before — gutter taps and word taps don't conflict. Honors `prefers-reduced-motion`.
 
+### Inline images — figures kept, with a show/hide toggle and tap-to-zoom
+
+Uploads keep their pictures. EPUB (and MOBI/AZW3) figures and embedded PDF images are extracted on ingest and rendered **inline at their place in the reading flow** — the picture sits with its caption instead of leaving a captionless gap. An **Images** toggle in the settings sheet hides or shows every figure instantly (default on, remembered per user); tap any figure to open it fullscreen, then tap anywhere or press **Esc** to close.
+
+Images live in a sidecar alongside the text, anchored to the paragraph they follow, so they never disturb the read-along: the word-highlight pill, saved progress, and quotes stay aligned, and playback simply flows past each picture. Applies to **new uploads** — books already in your library were ingested before this and stay text-only unless you re-upload them.
+
 ### Quotes — drag-select, save, export to Obsidian
 
 <p align="center">
@@ -117,7 +123,7 @@ Permanent action, so the Delete button stays disabled until you type the book's 
 
 ### Reading prefs per user
 
-Each user remembers their own playback speed, voice, font size, line height, theme, and current position. Tap the gear ⚙ to open settings. Switch users via the pill in the header — instant, no login.
+Each user remembers their own playback speed, voice, font size, line height, theme, whether inline images are shown, and current position. Tap the gear ⚙ to open settings. Switch users via the pill in the header — instant, no login.
 
 ---
 
@@ -205,7 +211,7 @@ Browser (vanilla JS) ─ HTTP ─→ FastAPI server ─→ SQLite + filesystem
 
 ```
 data.db                    SQLite: users, books, progress, prefs, quotes
-library/<book_id>/         original.<ext>, book.json, cover.jpg, covers/<source>.jpg
+library/<book_id>/         original.<ext>, book.json, cover.jpg, covers/<source>.jpg, images/<NNNN>.<ext>
 ```
 
 TTS is **realtime**: `/api/tts` synthesizes on demand and returns the audio inline (base64 → blob URL in the browser); nothing is persisted to disk. A bounded in-memory LRU (32 entries, keyed `text + voice_id + language + speed`) memoizes recent synths so repeats/toggles/seeks are instant. Speed is baked into the audio by Kokoro's native rate, and the per-word timestamps come with it — so the highlight pill stays synced at every speed.
@@ -236,7 +242,8 @@ docker compose up -d kokoro-tts
 
 - **English only.** The TTS model (Kokoro) is English.
 - **~5s first synth.** Realtime CPU synthesis means the first time you hit a given paragraph at a given speed costs ~5s; after that the in-memory LRU serves it instantly, and continuous playback is gapless via prefetch. Audio is never written to disk, so it doesn't survive a server restart.
-- **PDF is reflowed-text only** — original layout is not preserved. Multi-column or footnote-heavy PDFs will look ugly.
+- **PDF is reflowed-text** (embedded images extracted and placed inline) — original page layout is not preserved. Multi-column or footnote-heavy PDFs will look ugly, and a PDF with no extractable text (a pure scan) is rejected on upload.
+- **Inline images apply to new uploads only.** Books already in your library were ingested before image extraction existed — re-upload one to pull its pictures in.
 - **Single-paragraph quotes only.** Cross-paragraph selections clip to the start paragraph at save time.
 
 ## Credits
