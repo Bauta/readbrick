@@ -158,3 +158,15 @@ def test_show_images_pref_default_and_toggle():
 
     on = users.update_prefs(u["id"], {"show_images": 1})
     assert on["show_images"] == 1
+
+
+def test_text_width_clamps_to_range(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from server.db import init_db
+    from server import users
+    init_db()
+    u = users.create_user("Clamp")
+    assert users.update_prefs(u["id"], {"text_width": 10})["text_width"] == 45
+    assert users.update_prefs(u["id"], {"text_width": 999})["text_width"] == 95
+    assert users.update_prefs(u["id"], {"text_width": 72})["text_width"] == 72
+    assert users.update_prefs(u["id"], {"text_width": "80"})["text_width"] == 80

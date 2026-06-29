@@ -28,6 +28,15 @@ OpenDyslexic  (reading font; bundled at web/fonts/OpenDyslexic-Regular.woff2)
     https://openfontlicense.org
 
 ────────────────────────────────────────────────────────────────────────
+Lora — Copyright the Lora Project Authors. SIL Open Font License 1.1.
+  Bundled at web/fonts/Lora-*.woff2; license at web/fonts/licenses/lora-OFL.txt.
+Bitter — Copyright the Bitter Project Authors. SIL Open Font License 1.1.
+  Bundled at web/fonts/Bitter-*.woff2; license at web/fonts/licenses/bitter-OFL.txt.
+Atkinson Hyperlegible — Copyright Braille Institute of America, Inc.
+  SIL Open Font License 1.1. Bundled at web/fonts/AtkinsonHyperlegible-*.woff2;
+  license at web/fonts/licenses/atkinson-hyperlegible-OFL.txt.
+
+────────────────────────────────────────────────────────────────────────
 espeak-ng  (phonemizer; installed as a separate binary in the kokoro-tts image)
     https://github.com/espeak-ng/espeak-ng
     Licensed under the GNU General Public License v3.0. Used as an unmodified,

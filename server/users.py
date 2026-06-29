@@ -43,13 +43,18 @@ def get_prefs(user_id: int) -> dict:
         return dict(row)
 
 
-_PREF_FIELDS = {"voice_id", "speed", "font_size", "line_height", "theme", "font_family", "show_images"}
+_PREF_FIELDS = {"voice_id", "speed", "font_size", "line_height", "theme", "font_family", "show_images", "text_width"}
 
 
 def update_prefs(user_id: int, patch: dict) -> dict:
     fields = {k: v for k, v in patch.items() if k in _PREF_FIELDS}
     if "show_images" in fields:
         fields["show_images"] = 1 if fields["show_images"] else 0
+    if "text_width" in fields:
+        try:
+            fields["text_width"] = max(45, min(95, int(fields["text_width"])))
+        except (TypeError, ValueError):
+            del fields["text_width"]
     if not fields:
         return get_prefs(user_id)
     get_prefs(user_id)

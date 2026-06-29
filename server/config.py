@@ -17,6 +17,10 @@ def cache_dir() -> Path:
     return data_dir() / "cache"
 
 
+def fonts_cache_dir() -> Path:
+    return cache_dir() / "fonts"
+
+
 def db_path() -> Path:
     return data_dir() / "data.db"
 
@@ -37,10 +41,11 @@ WORDS_PER_MINUTE = 150  # Audiobook narration baseline at 1.0× speed.
 
 PDF_COVER_MAX_HEIGHT_PX = 800
 MAX_COVER_BYTES = 5 * 1024 * 1024
+FONT_MAX_BYTES = 4 * 1024 * 1024
 
 DEFAULT_VOICE = "kokoro:af_heart"
 
 
 def ensure_dirs() -> None:
-    for d in (data_dir(), library_dir(), cache_dir()):
+    for d in (data_dir(), library_dir(), cache_dir(), fonts_cache_dir()):
         d.mkdir(parents=True, exist_ok=True)

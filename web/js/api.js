@@ -23,6 +23,12 @@ export const api = {
     body: JSON.stringify(patch)
   }).then(j),
 
+  getFontCatalog: () => fetch('/api/fonts/catalog').then(j),
+  ensureFont: (family) => fetch('/api/fonts/ensure', {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({family})
+  }).then(j),
+
   listBooks: (userId) => fetch(`/api/books${userId ? `?user_id=${userId}` : ''}`).then(j),
   getBook: (id) => fetch(`/api/books/${id}`).then(j),
   deleteBook: (id) => fetch(`/api/books/${id}`, {method: 'DELETE'}).then(j),

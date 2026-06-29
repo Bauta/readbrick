@@ -23,12 +23,14 @@
   /* Reader font choices (settings → Font). --reader-font-family is set per-pref
      in JS from one of these; defaults to serif to match the original look. */
   --font-reader-sans: -apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',sans-serif;
-  --font-reader-serif: 'Charter','Georgia','Iowan Old Style','Palatino',serif;
-  --font-reader-slab: 'Rockwell','Roboto Slab','Courier New',serif;
+  --font-reader-serif: 'Lora','Charter','Georgia','Iowan Old Style',serif;
+  --font-reader-slab: 'Bitter','Rockwell','Roboto Slab','Courier New',serif;
+  --font-reader-hyperlegible: 'Atkinson Hyperlegible',-apple-system,'Segoe UI',sans-serif;
   --font-reader-dyslexic: 'OpenDyslexic','Comic Sans MS',sans-serif;
   --reader-font-family: var(--font-reader-serif);
   --reader-font-size: 19px;
   --reader-line-height: 1.7;
+  --reader-measure: 70ch;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
   --tap: 44px;
@@ -519,7 +521,7 @@ body.reader-body { background: var(--bg); }
 }
 
 .reader-content {
-  max-width: 700px;
+  max-width: var(--reader-measure);
   margin: 0 auto;
   /* Top padding clears the position:fixed header (8px + safe-top + 44px tap + 8px + 1px border)
      plus the original 36px breathing room. When chrome hides, .chrome-hidden collapses this back to 36px. */
@@ -837,10 +839,16 @@ body.chrome-hidden .reader-content {
   font-style: normal;
   font-display: swap;
 }
+@font-face { font-family: 'Lora'; src: url('/web/fonts/Lora-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Lora'; src: url('/web/fonts/Lora-Italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Bitter'; src: url('/web/fonts/Bitter-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Bitter'; src: url('/web/fonts/Bitter-Italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Atkinson Hyperlegible'; src: url('/web/fonts/AtkinsonHyperlegible-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Atkinson Hyperlegible'; src: url('/web/fonts/AtkinsonHyperlegible-Italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
 
 .font-toggle {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 6px;
 }
 .font-toggle button {
@@ -854,11 +862,34 @@ body.chrome-hidden .reader-content {
 .font-toggle button[data-font="serif"]    { font-family: var(--font-reader-serif); }
 .font-toggle button[data-font="slab"]     { font-family: var(--font-reader-slab); }
 .font-toggle button[data-font="dyslexic"] { font-family: var(--font-reader-dyslexic); }
+.font-toggle button[data-font="hyperlegible"] { font-family: var(--font-reader-hyperlegible); }
 .font-toggle button.active {
   background: var(--accent);
   color: var(--accent-on);
   border-color: var(--accent);
 }
+.font-recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.font-recents:empty { display: none; }
+.font-recents button {
+  padding: 8px 10px; font-size: 13px; background: var(--bg); border-radius: var(--radius-sm);
+}
+.font-recents button.active { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+.font-more {
+  margin-top: 8px; width: 100%; padding: 10px; font-size: 13px;
+  background: var(--bg); border-radius: var(--radius-sm); color: var(--fg-muted);
+}
+.font-search { margin-top: 8px; }
+.font-search input {
+  width: 100%; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+}
+.font-search-list {
+  list-style: none; margin: 6px 0 0; padding: 0; max-height: 220px; overflow-y: auto;
+}
+.font-search-list li {
+  padding: 10px 8px; border-radius: var(--radius-sm); cursor: pointer;
+}
+.font-search-list li:hover, .font-search-list li:focus-visible { background: var(--bg-2); }
 
 /* Desktop: settings becomes a right-side drawer */
 @media (min-width: 720px) {

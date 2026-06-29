@@ -14,6 +14,7 @@ import { createAudioEngine } from './reader/audio-engine.js';
 import { initDebugOverlay } from './reader/debug-overlay.js';
 import { findCurrentWord } from './reader/word-tracker.js';
 import { groupImagesByAnchor, createFigure, initLightbox } from './reader/images.js';
+import { resolveFont, addRecent, readRecents, writeRecents, filterCatalog, injectAndEnsure } from './reader/fonts.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -358,20 +359,22 @@ function applySpeed(next) {
   rewarmCurrentParagraph();
 }
 
-// Reading-font choices → CSS custom property (defined in style.css).
-const FONT_FAMILY_VARS = {
-  sans: 'var(--font-reader-sans)',
-  serif: 'var(--font-reader-serif)',
-  slab: 'var(--font-reader-slab)',
-  dyslexic: 'var(--font-reader-dyslexic)',
-};
+const BUNDLED_KEYS = ['sans', 'serif', 'slab', 'hyperlegible', 'dyslexic'];
+let fontCatalog = null; // {bundled, families}, loaded lazily
 
 function applyPrefs() {
   document.documentElement.style.setProperty('--reader-font-size', `${state.prefs.font_size}px`);
   document.documentElement.style.setProperty('--reader-line-height', String(state.prefs.line_height));
+  const tw = state.prefs.text_width ?? 70;
+  document.documentElement.style.setProperty('--reader-measure', `${tw}ch`);
   const fontFamily = state.prefs.font_family || 'serif';
-  document.documentElement.style.setProperty(
-    '--reader-font-family', FONT_FAMILY_VARS[fontFamily] || FONT_FAMILY_VARS.serif);
+  const resolved = resolveFont(fontFamily, BUNDLED_KEYS);
+  document.documentElement.style.setProperty('--reader-font-family', resolved.cssValue);
+  if (!resolved.isBundled) {
+    injectAndEnsure(resolved.family).catch(() => {
+      toast("Couldn't load that font — check your connection");
+    });
+  }
   document.documentElement.dataset.theme = state.prefs.theme;
   localStorage.setItem('reader.theme', state.prefs.theme);
 
@@ -381,13 +384,16 @@ function applyPrefs() {
   $('#fs-val').textContent = `${state.prefs.font_size} px`;
   $('#line-height').value = String(state.prefs.line_height);
   $('#lh-val').textContent = state.prefs.line_height.toFixed(1);
+  $('#text-width').value = String(tw);
+  $('#tw-val').textContent = String(tw);
 
   $$('.theme-toggle button').forEach((b) => {
     b.classList.toggle('active', b.dataset.theme === state.prefs.theme);
   });
-  $$('.font-toggle button').forEach((b) => {
+  $$('#font-toggle button').forEach((b) => {
     b.classList.toggle('active', b.dataset.font === fontFamily);
   });
+  renderRecents(fontFamily);
 
   const showImages = (state.prefs.show_images ?? 1) ? true : false;
   document.body.classList.toggle('hide-images', !showImages);
@@ -431,6 +437,52 @@ function populateVoices() {
 async function patchPref(patch) {
   state.prefs = await api.patchPrefs(state.user.id, patch);
   applyPrefs();
+}
+
+function renderRecents(activeFamily) {
+  const wrap = $('#font-recents');
+  if (!wrap) return;
+  const recents = readRecents();
+  wrap.replaceChildren();
+  for (const fam of recents) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = fam;
+    b.style.fontFamily = `"${fam}", var(--font-reader-serif)`;
+    b.classList.toggle('active', fam === activeFamily);
+    b.addEventListener('click', () => pickGoogleFont(fam));
+    wrap.appendChild(b);
+  }
+}
+
+async function pickGoogleFont(family) {
+  // If the picked name is actually a bundled family, store its key so it uses
+  // the pre-bundled @font-face instead of re-downloading the same glyphs.
+  const bundled = (fontCatalog?.bundled || []).find((b) => b.family === family);
+  if (bundled) {
+    await patchPref({ font_family: bundled.key });
+    return;
+  }
+  writeRecents(addRecent(readRecents(), family));
+  await patchPref({ font_family: family });
+}
+
+async function ensureCatalog() {
+  if (!fontCatalog) fontCatalog = await api.getFontCatalog();
+  return fontCatalog;
+}
+
+function renderSearchResults(query) {
+  const list = $('#font-search-list');
+  list.replaceChildren();
+  const results = filterCatalog(fontCatalog?.families || [], query);
+  for (const f of results) {
+    const li = document.createElement('li');
+    li.textContent = f.family;
+    li.tabIndex = 0;
+    li.addEventListener('click', () => pickGoogleFont(f.family));
+    list.appendChild(li);
+  }
 }
 
 // ───── controls wiring ─────
@@ -612,6 +664,13 @@ function setupControls() {
     patchPref({ line_height: v });
   });
 
+  $('#text-width').addEventListener('input', (e) => {
+    const v = parseInt(e.target.value, 10);
+    document.documentElement.style.setProperty('--reader-measure', `${v}ch`);
+    $('#tw-val').textContent = String(v);
+    patchPref({ text_width: v });
+  });
+
   $('#voice-select').addEventListener('change', async (e) => {
     await patchPref({ voice_id: e.target.value });
     // The ring's slots were synthesized with the old voice — drop them and
@@ -625,10 +684,24 @@ function setupControls() {
     });
   });
 
-  $$('.font-toggle button').forEach((btn) => {
+  $$('#font-toggle button').forEach((btn) => {
     btn.addEventListener('click', () => {
       patchPref({ font_family: btn.dataset.font });
     });
+  });
+
+  $('#font-more-btn').addEventListener('click', async () => {
+    const panel = $('#font-search');
+    const show = panel.hidden;
+    panel.hidden = !show;
+    if (show) {
+      await ensureCatalog();
+      renderSearchResults('');
+      $('#font-search-input').focus();
+    }
+  });
+  $('#font-search-input').addEventListener('input', (e) => {
+    renderSearchResults(e.target.value);
   });
 
   const imgToggle = $('#show-images-toggle');

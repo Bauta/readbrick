@@ -54,3 +54,24 @@ def test_existing_kokoro_pref_is_left_alone(tmp_path, monkeypatch):
     with connect() as c:
         v = c.execute("SELECT voice_id FROM prefs WHERE user_id = 1").fetchone()["voice_id"]
     assert v == "kokoro:bm_george"
+
+
+def test_new_user_default_text_width_is_70(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from server.db import init_db
+    from server import users
+    init_db()
+    u = users.create_user("Wid")
+    assert users.get_prefs(u["id"])["text_width"] == 70
+
+
+def test_text_width_column_added_to_legacy_prefs(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from server.db import init_db, connect
+    init_db()
+    with connect() as c:
+        c.execute("INSERT INTO users (name, created_at) VALUES ('A', 0)")
+        c.execute("INSERT INTO prefs (user_id) VALUES (1)")
+    init_db()  # re-run migration
+    from server import users
+    assert users.get_prefs(1)["text_width"] == 70

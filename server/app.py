@@ -17,7 +17,7 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import book_detail, library, quotes, synth_service, tts, users
+from . import book_detail, fonts, library, quotes, synth_service, tts, users
 from .config import (
     MAX_UPLOAD_BYTES,
     SUPPORTED_FORMATS,
@@ -179,6 +179,33 @@ def create_app() -> FastAPI:
         # script on direct navigation (the reader embeds via <img>, unaffected).
         return FileResponse(p, headers={
             "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            "X-Content-Type-Options": "nosniff",
+        })
+
+    @app.get("/api/fonts/catalog")
+    def api_fonts_catalog():
+        return fonts.catalog()
+
+    @app.post("/api/fonts/ensure")
+    async def api_fonts_ensure(req: Request):
+        body = await req.json()
+        family = (body or {}).get("family", "")
+        if not isinstance(family, str) or not family.strip():
+            raise HTTPException(400, "family required")
+        try:
+            return fonts.ensure(family)
+        except ValueError:
+            raise HTTPException(400, "font not in catalog")
+        except RuntimeError:
+            raise HTTPException(502, "could not download font")
+
+    @app.get("/api/fonts/file/{slug}/{leaf}")
+    def api_fonts_file(slug: str, leaf: str) -> FileResponse:
+        p = fonts.font_path(slug, leaf)
+        if p is None:
+            raise HTTPException(404)
+        return FileResponse(p, media_type="font/woff2", headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
             "X-Content-Type-Options": "nosniff",
         })
 

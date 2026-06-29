@@ -127,9 +127,18 @@ Cumulative seconds spent actively listening, tracked while audio plays and flush
 
 Permanent action, so the Delete button stays disabled until you type the book's exact title into the input. Cancel any time. Removes the row + the `library/<book_id>/` directory + all per-user progress + all quotes (via `ON DELETE CASCADE`).
 
+### Fonts & text width — bundled faces plus the full Google catalog, on demand
+
+<p align="center">
+  <img src="docs/screenshots/reader-font-search.png" alt="Settings sheet: quick-pick fonts plus a searchable Google Fonts catalog" width="240" />
+  <img src="docs/screenshots/reader-text-width.png"  alt="Settings sheet: the Text width slider" width="240" />
+</p>
+
+Five bundled reading faces ship with the app and render identically on every platform — **Sans** (system), **Serif** ([Lora](https://fonts.google.com/specimen/Lora)), **Slab** ([Bitter](https://fonts.google.com/specimen/Bitter)), **Legible** ([Atkinson Hyperlegible](https://fonts.google.com/specimen/Atkinson+Hyperlegible)), and **Dyslexic** ([OpenDyslexic](https://opendyslexic.org/)) — all self-hosted (SIL OFL; see [`NOTICE`](NOTICE)). Need something else? **"More fonts…"** searches the entire [Google Fonts](https://fonts.google.com/) catalog (~1,900 families). Pick one and the **server** downloads its woff2 once, caches it to disk, and serves it from Readbrick thereafter — so your browser never contacts Google, it works offline after the first fetch, and recently-picked fonts stay one tap away. **Text width** is an adjustable slider (45–95 characters) that sets the reading measure in `ch`, so the column scales with your font size.
+
 ### Reading prefs per user
 
-Each user remembers their own playback speed, voice, font size, line height, theme, whether inline images are shown, and current position. Tap the gear ⚙ to open settings. Switch users via the pill in the header — instant, no login.
+Each user remembers their own playback speed, voice, font (family, size, line height), text width, theme, whether inline images are shown, and current position. Tap the gear ⚙ to open settings. Switch users via the pill in the header — instant, no login.
 
 ---
 
@@ -216,9 +225,12 @@ Browser (vanilla JS) ─ HTTP ─→ FastAPI server ─→ SQLite + filesystem
 **Storage layout** (under `~/.reader/`, configurable via `READER_DATA_DIR`):
 
 ```
-data.db                    SQLite: users, books, progress, prefs, quotes
-library/<book_id>/         original.<ext>, book.json, cover.jpg, covers/<source>.jpg, images/<NNNN>.<ext>
+data.db                       SQLite: users, books, progress, prefs, quotes
+library/<book_id>/            original.<ext>, book.json, cover.jpg, covers/<source>.jpg, images/<NNNN>.<ext>
+cache/fonts/<slug>/<n>.woff2  downloaded Google fonts, cached server-side (0 = regular, 1 = italic)
 ```
+
+Bundled reading fonts ship in the repo at `web/fonts/` (with their OFL licenses under `web/fonts/licenses/`); the searchable Google Fonts catalog is a committed `data/google-fonts-list.json`, regenerable via `scripts/build-font-list.py`.
 
 TTS is **realtime**: `/api/tts` synthesizes on demand and returns the audio inline (base64 → blob URL in the browser); nothing is persisted to disk. A bounded in-memory LRU (32 entries, keyed `text + voice_id + language + speed`) memoizes recent synths so repeats/toggles/seeks are instant. Speed is baked into the audio by Kokoro's native rate, and the per-word timestamps come with it — so the highlight pill stays synced at every speed.
 
@@ -251,6 +263,7 @@ docker compose up -d kokoro-tts
 - **PDF is reflowed-text** (embedded images extracted and placed inline) — original page layout is not preserved. Multi-column or footnote-heavy PDFs will look ugly, and a PDF with no extractable text (a pure scan) is rejected on upload.
 - **Inline images apply to new uploads only.** Books already in your library were ingested before image extraction existed — re-upload one to pull its pictures in.
 - **Single-paragraph quotes only.** Cross-paragraph selections clip to the start paragraph at save time.
+- **Downloaded fonts are Latin-subset.** A picked Google font ships its Latin glyphs only; non-Latin runs fall back to the bundled serif. Bundled faces always work offline — downloading a *new* Google font needs internet the first time. Recently-picked fonts are remembered per device (`localStorage`), not per account.
 
 ## Credits
 

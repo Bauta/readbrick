@@ -434,3 +434,32 @@ def test_book_image_endpoint_security_headers(client):
     assert r.status_code == 200
     assert "sandbox" in r.headers["content-security-policy"]
     assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_fonts_catalog_endpoint(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from fastapi.testclient import TestClient
+    from server.app import create_app
+    c = TestClient(create_app())
+    r = c.get("/api/fonts/catalog")
+    assert r.status_code == 200
+    body = r.json()
+    assert {"bundled", "families"} <= set(body)
+    assert any(b["key"] == "serif" for b in body["bundled"])
+
+
+def test_fonts_ensure_rejects_unknown(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from fastapi.testclient import TestClient
+    from server.app import create_app
+    c = TestClient(create_app())
+    r = c.post("/api/fonts/ensure", json={"family": "Not A Font 9000"})
+    assert r.status_code == 400
+
+
+def test_fonts_file_404_on_bad_slug(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from fastapi.testclient import TestClient
+    from server.app import create_app
+    c = TestClient(create_app())
+    assert c.get("/api/fonts/file/nope/0.woff2").status_code == 404
