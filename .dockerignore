@@ -1,5 +1,6 @@
 # Keep the Docker build context small. The reader image COPYs server/ + web/ +
-# pyproject; the kokoro image COPYs kokoro_service/. Everything else is noise.
+# data/google-fonts-list.json + pyproject; the kokoro image COPYs kokoro_service/.
+# Everything else is noise.
 .venv/
 .git/
 __pycache__/
@@ -13,4 +14,5 @@ docs/
 tests/
 scripts/
 reader.egg-info/
-data/
+data/*
+!data/google-fonts-list.json

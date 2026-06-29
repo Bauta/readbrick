@@ -17,6 +17,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY server ./server
 COPY web ./web
+COPY data ./data
 RUN pip install --no-cache-dir -e .
 
 EXPOSE 8000
