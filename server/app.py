@@ -209,6 +209,13 @@ def create_app() -> FastAPI:
             "X-Content-Type-Options": "nosniff",
         })
 
+    @app.delete("/api/fonts/{slug}", status_code=204)
+    def api_fonts_delete(slug: str) -> Response:
+        # Removes a downloaded font's server cache. Traversal-safe in
+        # fonts.delete_cached; idempotent (missing/invalid slug → still 204).
+        fonts.delete_cached(slug)
+        return Response(status_code=204)
+
     @app.get("/api/books/{book_id}/covers")
     def api_book_covers(book_id: str):
         return book_detail.list_covers(book_id)

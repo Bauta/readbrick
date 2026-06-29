@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
@@ -138,3 +139,26 @@ def font_path(slug: str, leaf: str) -> Path | None:
     if base not in target.parents:
         return None
     return target if target.is_file() else None
+
+
+_SLUG_RE = re.compile(r"^[a-z0-9-]+$")
+
+
+def delete_cached(slug: str) -> bool:
+    """Remove a downloaded font's cache dir (fonts_cache_dir()/<slug>/).
+
+    Traversal-safe: the slug must be a valid slugify() output, and the resolved
+    target must be a DIRECT child of the fonts cache dir — so nothing outside
+    that dir (and never the bundled web/fonts files, which live elsewhere) can
+    be removed. Returns True if a dir was removed, False if nothing matched
+    (idempotent — deleting a missing or invalid slug is a no-op)."""
+    if not _SLUG_RE.match(slug):
+        return False
+    base = fonts_cache_dir().resolve()
+    target = (base / slug).resolve()
+    if target.parent != base:
+        return False
+    if target.is_dir():
+        shutil.rmtree(target)
+        return True
+    return False

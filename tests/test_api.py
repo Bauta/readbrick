@@ -463,3 +463,36 @@ def test_fonts_file_404_on_bad_slug(tmp_path, monkeypatch):
     from server.app import create_app
     c = TestClient(create_app())
     assert c.get("/api/fonts/file/nope/0.woff2").status_code == 404
+
+
+def test_fonts_delete_endpoint(tmp_path, monkeypatch):
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from fastapi.testclient import TestClient
+    from server.app import create_app
+    from server import fonts
+    c = TestClient(create_app())
+    d = fonts.fonts_cache_dir() / "merriweather"
+    d.mkdir(parents=True)
+    (d / "0.woff2").write_bytes(b"x")
+    assert c.delete("/api/fonts/merriweather").status_code == 204
+    assert not d.exists()
+    # idempotent: deleting again is still 204
+    assert c.delete("/api/fonts/merriweather").status_code == 204
+
+
+@pytest.mark.parametrize("bad_slug", ["%2E%2E", "Merriweather", "foo.bar", "never-here"])
+def test_fonts_delete_endpoint_rejects_bad_slugs(tmp_path, monkeypatch, bad_slug):
+    # The endpoint is an idempotent no-op for invalid/traversal/unknown slugs:
+    # it must return 204 (never 400/500) and never delete anything. A sentinel
+    # OUTSIDE the cache dir must survive. Belt-and-suspenders at the HTTP layer
+    # over delete_cached()'s unit-level traversal guard.
+    monkeypatch.setenv("READER_DATA_DIR", str(tmp_path))
+    from fastapi.testclient import TestClient
+    from server.app import create_app
+    from server import fonts
+    c = TestClient(create_app())
+    outside = fonts.fonts_cache_dir().parent.parent / "outside_secret"
+    outside.mkdir(parents=True)
+    (outside / "keep.txt").write_text("keep")
+    assert c.delete(f"/api/fonts/{bad_slug}").status_code == 204
+    assert (outside / "keep.txt").exists()

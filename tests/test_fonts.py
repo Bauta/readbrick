@@ -141,3 +141,32 @@ def test_bundled_font_files_present():
     for name in expected:
         p = WEB_FONTS / name
         assert p.is_file() and p.stat().st_size > 1000, f"missing/empty: {name}"
+
+
+def test_delete_cached_removes_dir(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    from server import fonts
+    d = fonts.fonts_cache_dir() / "merriweather"
+    d.mkdir(parents=True)
+    (d / "0.woff2").write_bytes(b"x")
+    assert fonts.delete_cached("merriweather") is True
+    assert not d.exists()
+
+
+def test_delete_cached_idempotent_on_missing(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    from server import fonts
+    assert fonts.delete_cached("never-downloaded") is False
+
+
+def test_delete_cached_rejects_traversal_and_bad_slugs(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    from server import fonts
+    # A sentinel OUTSIDE the fonts cache dir must survive every attempt.
+    outside = fonts.fonts_cache_dir().parent.parent / "outside_secret"
+    outside.mkdir(parents=True)
+    (outside / "keep.txt").write_text("keep")
+    for bad in ["..", "../..", "../../outside_secret", "a/b",
+                "merriweather/../..", "/etc", "Merriweather", "foo.bar"]:
+        assert fonts.delete_cached(bad) is False, bad
+    assert (outside / "keep.txt").exists()

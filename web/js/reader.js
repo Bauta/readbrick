@@ -390,10 +390,7 @@ function applyPrefs() {
   $$('.theme-toggle button').forEach((b) => {
     b.classList.toggle('active', b.dataset.theme === state.prefs.theme);
   });
-  $$('#font-toggle button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.font === fontFamily);
-  });
-  renderRecents(fontFamily);
+  renderFontSelect(fontFamily);
 
   const showImages = (state.prefs.show_images ?? 1) ? true : false;
   document.body.classList.toggle('hide-images', !showImages);
@@ -439,32 +436,117 @@ async function patchPref(patch) {
   applyPrefs();
 }
 
-function renderRecents(activeFamily) {
-  const wrap = $('#font-recents');
-  if (!wrap) return;
+// Minimal slug matching the server's slugify: family → url-safe id.
+function slugify(family) {
+  return family.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+// Rebuild the font <select>: bundled optgroup + downloaded optgroup from recents.
+function renderFontSelect(activeFamily) {
+  const sel = document.getElementById('font-select');
+  if (!sel) return;
+  sel.replaceChildren();
+
+  const og1 = document.createElement('optgroup');
+  og1.label = 'Built-in';
+  const BUNDLED_OPTS = [
+    { key: 'sans', label: 'Sans-serif' },
+    { key: 'serif', label: 'Serif' },
+    { key: 'slab', label: 'Slab serif' },
+    { key: 'hyperlegible', label: 'Hyperlegible' },
+    { key: 'dyslexic', label: 'OpenDyslexic' },
+  ];
+  for (const { key, label } of BUNDLED_OPTS) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = label;
+    if (key === activeFamily) opt.selected = true;
+    og1.appendChild(opt);
+  }
+  sel.appendChild(og1);
+
   const recents = readRecents();
-  wrap.replaceChildren();
-  for (const fam of recents) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = fam;
-    b.style.fontFamily = `"${fam}", var(--font-reader-serif)`;
-    b.classList.toggle('active', fam === activeFamily);
-    b.addEventListener('click', () => pickGoogleFont(fam));
-    wrap.appendChild(b);
+  // If the active font is a Google family not yet in recents, include it first.
+  const isBundledActive = BUNDLED_KEYS.includes(activeFamily);
+  const families = (!isBundledActive && activeFamily && !recents.includes(activeFamily))
+    ? [activeFamily, ...recents]
+    : recents;
+
+  if (families.length > 0) {
+    const og2 = document.createElement('optgroup');
+    og2.label = 'Downloaded';
+    for (const fam of families) {
+      const opt = document.createElement('option');
+      opt.value = fam;
+      opt.textContent = fam;
+      if (fam === activeFamily) opt.selected = true;
+      og2.appendChild(opt);
+    }
+    sel.appendChild(og2);
   }
 }
 
-async function pickGoogleFont(family) {
-  // If the picked name is actually a bundled family, store its key so it uses
-  // the pre-bundled @font-face instead of re-downloading the same glyphs.
-  const bundled = (fontCatalog?.bundled || []).find((b) => b.family === family);
-  if (bundled) {
-    await patchPref({ font_family: bundled.key });
-    return;
+// Render the font panel list: downloaded-fonts manage view or catalog search results.
+function renderFontPanel(query) {
+  const list = document.getElementById('font-panel-list');
+  if (!list) return;
+  list.replaceChildren();
+
+  const q = (query || '').trim();
+  const recents = readRecents();
+
+  if (!q) {
+    // Manage view: downloaded fonts with delete buttons.
+    if (recents.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'font-panel-empty';
+      li.textContent = 'No downloaded fonts yet — search above to add one.';
+      list.appendChild(li);
+      return;
+    }
+    for (const fam of recents) {
+      list.appendChild(makeFontRow(fam, /*showDelete=*/true));
+    }
+  } else {
+    // Search view: catalog results; downloaded ones show their delete button.
+    const results = filterCatalog(fontCatalog?.families || [], q);
+    if (results.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'font-panel-empty';
+      li.textContent = 'No results';
+      list.appendChild(li);
+      return;
+    }
+    for (const f of results) {
+      list.appendChild(makeFontRow(f.family, recents.includes(f.family)));
+    }
   }
-  writeRecents(addRecent(readRecents(), family));
-  await patchPref({ font_family: family });
+}
+
+function makeFontRow(family, showDelete) {
+  const li = document.createElement('li');
+  li.className = 'font-panel-item';
+
+  const nameBtn = document.createElement('button');
+  nameBtn.type = 'button';
+  nameBtn.className = 'font-panel-name';
+  nameBtn.textContent = family;
+  nameBtn.addEventListener('click', () => pickFont(family));
+  li.appendChild(nameBtn);
+
+  if (showDelete) {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'font-panel-del';
+    delBtn.textContent = '✕';
+    delBtn.setAttribute('aria-label', `Remove ${family}`);
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteFont(family);
+    });
+    li.appendChild(delBtn);
+  }
+  return li;
 }
 
 async function ensureCatalog() {
@@ -472,17 +554,80 @@ async function ensureCatalog() {
   return fontCatalog;
 }
 
-function renderSearchResults(query) {
-  const list = $('#font-search-list');
-  list.replaceChildren();
-  const results = filterCatalog(fontCatalog?.families || [], query);
-  for (const f of results) {
-    const li = document.createElement('li');
-    li.textContent = f.family;
-    li.tabIndex = 0;
-    li.addEventListener('click', () => pickGoogleFont(f.family));
-    list.appendChild(li);
+// Escape-to-close handler, bound only while the panel is open so keyboard
+// users can dismiss it without tabbing back to the trigger.
+let fontPanelEscHandler = null;
+
+async function openFontPanel() {
+  const panel = document.getElementById('font-panel');
+  if (!panel) return;
+  panel.hidden = false;
+  const moreBtn = document.getElementById('font-more-btn');
+  if (moreBtn) moreBtn.setAttribute('aria-expanded', 'true');
+  fontPanelEscHandler = (e) => {
+    if (e.key === 'Escape') { closeFontPanel(); if (moreBtn) moreBtn.focus(); }
+  };
+  document.addEventListener('keydown', fontPanelEscHandler);
+  const input = document.getElementById('font-search-input');
+  if (input) { input.value = ''; input.focus(); }
+  renderFontPanel('');
+  // Load catalog in background; re-render if user has already typed.
+  await ensureCatalog();
+  const q = input ? input.value : '';
+  if (q) renderFontPanel(q);
+}
+
+function closeFontPanel() {
+  const panel = document.getElementById('font-panel');
+  if (panel) panel.hidden = true;
+  const moreBtn = document.getElementById('font-more-btn');
+  if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
+  if (fontPanelEscHandler) {
+    document.removeEventListener('keydown', fontPanelEscHandler);
+    fontPanelEscHandler = null;
   }
+  const input = document.getElementById('font-search-input');
+  if (input) input.value = '';
+}
+
+// Apply a font family: bundled key or Google family name.
+async function pickFont(family) {
+  const bundled = (fontCatalog?.bundled || []).find((b) => b.family === family);
+  if (bundled) {
+    closeFontPanel();
+    await patchPref({ font_family: bundled.key });
+    return;
+  }
+  // Google font: ensure the server has cached it + inject @font-face before
+  // applying. Close the panel first so a slow download can't be raced by a
+  // second pick, and bail on failure so a font that won't load never sticks in
+  // recents/prefs (a stuck pref would re-trigger the failure on every reload).
+  closeFontPanel();
+  try {
+    await injectAndEnsure(family);
+  } catch {
+    toast("Couldn't load that font — check your connection");
+    return;
+  }
+  writeRecents(addRecent(readRecents(), family));
+  await patchPref({ font_family: family });
+}
+
+// Remove a downloaded Google font from recents + server cache.
+async function deleteFont(family) {
+  const slug = slugify(family);
+  writeRecents(readRecents().filter((f) => f !== family));
+  fetch(`/api/fonts/${slug}`, { method: 'DELETE' }).catch(() => {});
+
+  const activeFamily = state.prefs.font_family || 'serif';
+  if (activeFamily === family) {
+    // Fall back to default serif; patchPref → applyPrefs → renderFontSelect.
+    await patchPref({ font_family: 'serif' });
+  } else {
+    renderFontSelect(activeFamily);
+  }
+  // Refresh the panel to reflect the deletion.
+  renderFontPanel(document.getElementById('font-search-input')?.value || '');
 }
 
 // ───── controls wiring ─────
@@ -684,24 +829,17 @@ function setupControls() {
     });
   });
 
-  $$('#font-toggle button').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      patchPref({ font_family: btn.dataset.font });
-    });
+  $('#font-select').addEventListener('change', (e) => {
+    patchPref({ font_family: e.target.value });
   });
 
   $('#font-more-btn').addEventListener('click', async () => {
-    const panel = $('#font-search');
-    const show = panel.hidden;
-    panel.hidden = !show;
-    if (show) {
-      await ensureCatalog();
-      renderSearchResults('');
-      $('#font-search-input').focus();
-    }
+    if ($('#font-panel').hidden) await openFontPanel();
+    else closeFontPanel();
   });
+
   $('#font-search-input').addEventListener('input', (e) => {
-    renderSearchResults(e.target.value);
+    renderFontPanel(e.target.value);
   });
 
   const imgToggle = $('#show-images-toggle');
@@ -718,6 +856,7 @@ function setupControls() {
   const sheet = $('#settings-sheet');
   const backdrop = $('#sheet-backdrop');
   const openSheet = () => {
+    closeFontPanel();
     sheet.classList.add('open');
     backdrop.hidden = false;
     requestAnimationFrame(() => backdrop.classList.add('open'));

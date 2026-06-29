@@ -11,6 +11,7 @@
   --accent: #b6541a;
   --accent-soft: #f4e7d8;
   --accent-on: #ffffff;
+  --color-danger: #c0392b;
   --border: #e6e2d8;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
@@ -55,6 +56,7 @@
   --fg-muted: #9b9181;
   --accent: #e58b46;
   --accent-soft: #3a2a18;
+  --color-danger: #e8766b;
   --border: #2e2a24;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.30);
   --shadow: 0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.40);
@@ -70,6 +72,7 @@
     --fg-muted: #9b9181;
     --accent: #e58b46;
     --accent-soft: #3a2a18;
+    --color-danger: #e8766b;
     --border: #2e2a24;
     --shadow-sm: 0 1px 2px rgba(0,0,0,.30);
     --shadow: 0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.40);
@@ -846,50 +849,96 @@ body.chrome-hidden .reader-content {
 @font-face { font-family: 'Atkinson Hyperlegible'; src: url('/web/fonts/AtkinsonHyperlegible-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Atkinson Hyperlegible'; src: url('/web/fonts/AtkinsonHyperlegible-Italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
 
-.font-toggle {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  gap: 6px;
-}
-.font-toggle button {
-  padding: 12px 6px;
+/* ── Font picker ────────────────────────────────────────────── */
+/* #font-select inherits the global select rule (bg, border, radius, width, padding). */
+
+.font-more {
+  display: block;
+  margin-top: 6px;
+  width: 100%;
+  padding: 10px 14px;
   font-size: 13px;
   background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  text-align: left;
+  cursor: pointer;
 }
-/* Preview each option in its own face. */
-.font-toggle button[data-font="sans"]     { font-family: var(--font-reader-sans); }
-.font-toggle button[data-font="serif"]    { font-family: var(--font-reader-serif); }
-.font-toggle button[data-font="slab"]     { font-family: var(--font-reader-slab); }
-.font-toggle button[data-font="dyslexic"] { font-family: var(--font-reader-dyslexic); }
-.font-toggle button[data-font="hyperlegible"] { font-family: var(--font-reader-hyperlegible); }
-.font-toggle button.active {
-  background: var(--accent);
-  color: var(--accent-on);
-  border-color: var(--accent);
+.font-more:hover { color: var(--fg); background: var(--bg-2); border-color: var(--accent); }
+.font-more:active { transform: scale(0.98); }
+
+.font-panel {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
-.font-recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.font-recents:empty { display: none; }
-.font-recents button {
-  padding: 8px 10px; font-size: 13px; background: var(--bg); border-radius: var(--radius-sm);
+.font-panel input[type="search"] {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+  outline: none;
+  -webkit-appearance: textfield;
+  appearance: textfield;
 }
-.font-recents button.active { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
-.font-more {
-  margin-top: 8px; width: 100%; padding: 10px; font-size: 13px;
-  background: var(--bg); border-radius: var(--radius-sm); color: var(--fg-muted);
+.font-panel input[type="search"]:focus { border-bottom-color: var(--accent); }
+.font-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg);
 }
-.font-search { margin-top: 8px; }
-.font-search input {
-  width: 100%; padding: 10px; border-radius: var(--radius-sm);
-  background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+.font-panel-item {
+  display: flex;
+  align-items: center;
 }
-.font-search-list {
-  list-style: none; margin: 6px 0 0; padding: 0; max-height: 220px; overflow-y: auto;
+.font-panel-name {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.font-search-list li {
-  padding: 10px 8px; border-radius: var(--radius-sm); cursor: pointer;
+.font-panel-name:hover { background: var(--bg-2); border-color: transparent; }
+.font-panel-name:active { transform: none; }
+.font-panel-del {
+  flex: none;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--fg-muted);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.7;
 }
-.font-search-list li:hover, .font-search-list li:focus-visible { background: var(--bg-2); }
+.font-panel-del:hover { color: var(--color-danger); background: transparent; border-color: transparent; opacity: 1; }
+.font-panel-del:active { transform: none; }
+.font-panel-empty {
+  padding: 14px 12px;
+  color: var(--fg-muted);
+  font-size: 13px;
+  text-align: center;
+  font-style: italic;
+}
 
 /* Desktop: settings becomes a right-side drawer */
 @media (min-width: 720px) {

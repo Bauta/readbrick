@@ -88,18 +88,11 @@
 
     <div class="settings-row">
       <label>Font</label>
-      <div class="font-toggle" id="font-toggle">
-        <button data-font="sans">Sans</button>
-        <button data-font="serif">Serif</button>
-        <button data-font="slab">Slab</button>
-        <button data-font="hyperlegible">Legible</button>
-        <button data-font="dyslexic">Dyslexic</button>
-      </div>
-      <div class="font-recents" id="font-recents"></div>
-      <button class="font-more" id="font-more-btn" type="button">More fonts…</button>
-      <div class="font-search" id="font-search" hidden>
+      <select id="font-select"></select>
+      <button class="font-more" id="font-more-btn" type="button" aria-expanded="false" aria-controls="font-panel">More fonts…</button>
+      <div class="font-panel" id="font-panel" hidden>
         <input type="search" id="font-search-input" placeholder="Search Google Fonts…" autocomplete="off" />
-        <ul class="font-search-list" id="font-search-list"></ul>
+        <ul class="font-panel-list" id="font-panel-list"></ul>
       </div>
     </div>
 
