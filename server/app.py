@@ -166,12 +166,20 @@ def create_app() -> FastAPI:
         users.delete_user(user_id)
         return Response(status_code=204)
 
+    # A browser remembers its user in localStorage; remove that user and every
+    # page still asks for their prefs on load. Without this guard the answer
+    # was a foreign-key IntegrityError surfacing as a 500, which the reader
+    # page could not tell apart from the server being broken.
     @app.get("/api/users/{user_id}/prefs")
     def api_get_prefs(user_id: int):
+        if not users.exists(user_id):
+            raise HTTPException(404, "no such user")
         return users.get_prefs(user_id)
 
     @app.patch("/api/users/{user_id}/prefs")
     async def api_patch_prefs(user_id: int, req: Request):
+        if not users.exists(user_id):
+            raise HTTPException(404, "no such user")
         body = await req.json()
         return users.update_prefs(user_id, body or {})
 

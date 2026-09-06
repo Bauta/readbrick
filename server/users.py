@@ -34,6 +34,11 @@ def delete_user(user_id: int) -> None:
         c.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
+def exists(user_id: int) -> bool:
+    with connect() as c:
+        return c.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone() is not None
+
+
 def get_prefs(user_id: int) -> dict:
     with connect() as c:
         row = c.execute("SELECT * FROM prefs WHERE user_id = ?", (user_id,)).fetchone()

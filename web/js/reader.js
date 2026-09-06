@@ -36,7 +36,16 @@ async function boot() {
   state.paragraphs = flattenParagraphs(state.book);
   $('#book-title').textContent = state.book.title;
 
-  state.prefs = await api.getPrefs(state.user.id);
+  try {
+    state.prefs = await api.getPrefs(state.user.id);
+  } catch {
+    // The stored user no longer exists (removed, or a re-created library).
+    // The library knows how to re-pick a user; the reader does not, and
+    // without this it dies here with every control unwired.
+    session.user = null;
+    location.href = '/';
+    return;
+  }
   state.quotes = await api.listQuotes(state.user.id, bookId).catch(() => []);
   state.voices = await api.listVoices();
   // If the user's stored voice no longer exists in the picker (e.g. the
