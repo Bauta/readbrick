@@ -11,6 +11,10 @@ const j = async (r) => {
 };
 
 export const api = {
+  // Desktop palette availability (Omarchy). Never throws the page: a reader
+  // running anywhere else simply has no desktop theme to offer.
+  getTheme: () => fetch('/api/theme').then(j).catch(() => ({ available: false })),
+
   listUsers: () => fetch('/api/users').then(j),
   createUser: (name) => fetch('/api/users', {
     method: 'POST', headers: {'content-type': 'application/json'},

@@ -795,7 +795,9 @@ body.chrome-hidden .reader-content {
 
 .theme-toggle {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* auto-fit rather than a fixed count: the Omarchy option is only present on
+     an Omarchy desktop, and a fixed grid would leave a hole everywhere else. */
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
   gap: 6px;
 }
 .theme-toggle button {

@@ -13,6 +13,9 @@
   <meta name="apple-mobile-web-app-title" content="Readbrick" />
   <title>Readbrick</title>
   <link rel="stylesheet" href="/web/style.css" />
+  <!-- Active Omarchy palette, scoped to [data-theme="omarchy"].
+       Empty stylesheet on any machine without Omarchy. -->
+  <link rel="stylesheet" href="/api/theme.css" />
 </head>
 <body class="reader-body">
   <header class="reader-header">
@@ -103,6 +106,8 @@
         <button data-theme="sepia">Sepia</button>
         <button data-theme="dark">Dark</button>
         <button data-theme="auto">Auto</button>
+        <!-- Unhidden at boot only when the server finds an Omarchy palette. -->
+        <button data-theme="omarchy" id="theme-omarchy" hidden>Omarchy</button>
       </div>
     </div>
 

@@ -63,6 +63,7 @@ async function boot() {
 
   setupControls();
   setupMediaSession();
+  revealDesktopTheme();
 
   // Reposition the pill instantly when the content area resizes
   // (window resize, font size slider, line height slider, etc).
@@ -710,6 +711,25 @@ function ensurePrefetchRing() {
 // ensureEngine is assigned inside setupControls (where AudioContext subs live)
 // and used by the module-level play() which fires on user gesture.
 let ensureEngine = async () => {};
+
+// ───── Desktop palette (Omarchy) ─────
+//
+// One more option beside Light / Sepia / Dark / Auto, never a replacement for
+// them: the reader is used on phones too, where the desktop's theme means
+// nothing. The colours themselves arrive as /api/theme.css.
+async function revealDesktopTheme() {
+  const btn = $('#theme-omarchy');
+  if (!btn) return;
+  const theme = await api.getTheme();
+  if (theme.available) {
+    btn.hidden = false;
+    if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
+  } else if (state.prefs?.theme === 'omarchy') {
+    // Stored preference for a palette this machine can no longer supply —
+    // fall back rather than render an unstyled page.
+    patchPref({ theme: 'auto' });
+  }
+}
 
 // ───── MediaSession (→ MPRIS on Linux) ─────
 //

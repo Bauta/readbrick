@@ -17,7 +17,7 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import book_detail, fonts, library, quotes, synth_service, tts, users
+from . import book_detail, fonts, library, omarchy_theme, quotes, synth_service, tts, users
 from .config import (
     MAX_UPLOAD_BYTES,
     SUPPORTED_FORMATS,
@@ -61,6 +61,27 @@ def create_app() -> FastAPI:
         if not target.exists():
             raise HTTPException(404)
         return FileResponse(target)
+
+    # ───── desktop theme (Omarchy) ─────
+
+    @app.get("/api/theme")
+    def api_theme():
+        """Whether the reader can offer the desktop's palette, and which one."""
+        palette = omarchy_theme.read_palette()
+        if not palette:
+            return {"available": False}
+        return {
+            "available": True,
+            "name": omarchy_theme.theme_name(),
+            "mode": palette.get("mode"),
+        }
+
+    @app.get("/api/theme.css")
+    def api_theme_css():
+        # Always 200 with text/css: the page links this unconditionally, and an
+        # empty stylesheet is the correct answer on a non-Omarchy machine.
+        css = omarchy_theme.palette_css(omarchy_theme.read_palette())
+        return Response(content=css, media_type="text/css")
 
     # ───── users ─────
 
