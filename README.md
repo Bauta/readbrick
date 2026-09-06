@@ -102,7 +102,7 @@ The most-recently-read book lifts to the top in a hero band: cover, current chap
 
 <p align="center"><img src="docs/screenshots/reader-word-pill.png" alt="Reader with active paragraph + live word-highlight pill" width="320" /></p>
 
-Word-level highlighting follows the audio with a soft pill driven by `requestAnimationFrame` (~60 Hz) — each individual word lights up as it's spoken, not the whole sentence. As audio crosses through a long paragraph, the page autoscrolls to keep the active word inside the middle 60% of the viewport. Voice selection (28 English voices) lives in the settings sheet — see [Text-to-speech (Kokoro)](#text-to-speech-kokoro) below. Footer controls: ⏮ / ⏭ for paragraph nav, ⏯ for play/pause, a tap-cycle speed pill (0.5× – 2.0×), and Sleep. Tap a word while paused to seek there; tap the progress bar to jump.
+Word-level highlighting follows the audio with a soft pill driven by `requestAnimationFrame` (~60 Hz) — each individual word lights up as it's spoken, not the whole sentence. As audio crosses through a long paragraph, the page autoscrolls to keep the active word inside the middle 60% of the viewport. Voice selection (28 English voices) lives in the settings sheet — see [Text-to-speech (Kokoro)](#text-to-speech-kokoro) below. Footer controls: ⏮ / ⏭ for paragraph nav, ▶ for play/pause, and **Sleep**; the progress line reads as the chapter you are in and the time left ("Introduction · 5 h 34 min left"), not a paragraph count. Speed lives in Settings. Tap a word while paused to seek there; tap the progress bar to jump. Media keys work too — see [Desktop integration](#desktop-integration) below.
 
 ### Immersive playback — chrome auto-hides, double-tap edges to ±15s
 
@@ -112,7 +112,7 @@ Word-level highlighting follows the audio with a soft pill driven by `requestAni
   <img src="docs/screenshots/reader-seek-hint.png"  alt="First-run hint: 'Double-tap the edges to skip ±15s'"                   width="240" />
 </p>
 
-After 3 seconds of playback without interaction the header and footer fade away — just the words and the orange pill. Tap anywhere to bring the controls back; pause forces them visible immediately. Open a settings sheet, chapters drawer, sleep timer, or quote toolbar and the chrome stays put for as long as that surface is open.
+After 3 seconds of playback without interaction the header and footer fade away — just the words and the orange pill. Tap anywhere to bring the controls back; pause forces them visible immediately. Open the settings sheet, chapters drawer, sleep timer, or quote toolbar and the chrome stays put for as long as that surface is open.
 
 For ±15 second seeks, double-tap the side gutters (outside the text column) — left for back, right for forward. A circular `−15s` / `+15s` flashes on the tapped side. The first time you press play, a one-time toast teaches the gesture. Tap-on-a-word-to-seek (while paused) still works exactly like before — gutter taps and word taps don't conflict. Honors `prefers-reduced-motion`.
 
@@ -167,6 +167,8 @@ Tap **Sleep** in the reader footer → pick 5/10/15/30/45/60 minutes or **End of
 
 ### Chapter sidebar
 
+Empty structural "chapters" from the EPUB are hidden, and each entry shows its length in minutes.
+
 <p align="center"><img src="docs/screenshots/chapter-sidebar-open.png" alt="Slide-out chapter list with active chapter highlighted" width="320" /></p>
 
 Tap **☰** in the reader header → slide-out left panel listing chapters with paragraph counts. The active chapter is highlighted with a left-border accent. Tap any chapter to jump (preserves play state — auto-resumes if you were playing). Backdrop / Escape closes.
@@ -194,9 +196,23 @@ Five bundled reading faces ship with the app and render identically on every pla
 
 ### Reading prefs per user
 
-Each user remembers their own playback speed, voice, font (family, size, line height), text width, theme, whether inline images are shown, and current position. Tap the gear ⚙ to open settings. Switch users via the pill in the header — instant, no login.
+Each user remembers their own playback speed, voice, font (family, size, line height), text width, theme, whether inline images are shown, and current position. Tap **Settings** — in the reader header, or in the library header for the theme — to open them. Settings are grouped Narration / Text / Appearance. Switch users via the pill in the header — instant, no login.
 
 ---
+
+## Desktop integration
+
+### Media keys and the desktop's media widget
+
+The reader publishes MediaSession metadata, so on Linux it appears on the session bus as an MPRIS player: media keys play, pause, skip a paragraph and seek ±15s, and desktop media widgets show the book and author. It identifies itself with `Readbrick` in the album field, because that is the only slot a browser publishes stably.
+
+### Omarchy bar plugin
+
+On [Omarchy](https://omarchy.org/) there is a companion bar plugin, **[bauta.readbrick](https://github.com/Bauta/readbrick-omarchy)**: a brick on the bar that opens the reader in its own borderless window (click) and shows a QR code of your Tailscale address (hover) so a phone can pick the same book up. Install with `omarchy plugin add https://github.com/Bauta/readbrick-omarchy`.
+
+### Theme
+
+Light, Sepia, Dark and Auto, plus **Omarchy** when the server runs on an Omarchy desktop (see [Matching your desktop theme](#matching-your-desktop-theme-omarchy)). Auto follows the desktop: the full Omarchy palette where there is one, otherwise the desktop's light/dark side, otherwise the browser's preference. A palette that cannot carry body text at WCAG AA is refused rather than half-applied.
 
 ## Text-to-speech (Kokoro)
 
@@ -219,7 +235,7 @@ The picker in the settings sheet groups the **28 English voices** by accent/regi
 
 ### Speed
 
-The tap-cycle speed pill (0.5×–2.0×) uses **Kokoro's native `speed` parameter**: the model paces the speech itself — natural prosody, pitch preserved, not time-stretch — and emits per-word timestamps that match, so the read-along pill stays synced at every speed. Each distinct speed is a separate synth (and a separate LRU entry).
+The speed slider in Settings (0.5×–2.0×) uses **Kokoro's native `speed` parameter**: the model paces the speech itself — natural prosody, pitch preserved, not time-stretch — and emits per-word timestamps that match, so the read-along pill stays synced at every speed. Each distinct speed is a separate synth (and a separate LRU entry).
 
 ### Setup
 
