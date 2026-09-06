@@ -10,7 +10,9 @@
 import { chromium } from 'playwright';
 import { strict as assert } from 'node:assert';
 
-const BASE = 'http://127.0.0.1:8000';
+// Override to point the smoke at a host-run server on another port, e.g.
+//   READER_BASE=http://127.0.0.1:8010 node tests/ui/immersive-smoke.mjs
+const BASE = process.env.READER_BASE || 'http://127.0.0.1:8000';
 
 async function main() {
   const browser = await chromium.launch({

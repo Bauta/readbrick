@@ -9,6 +9,10 @@ import { applyQuoteHighlights, setupQuoteSelection, setupQuotePopover } from './
 import { initAutoscroll } from './reader/autoscroll.js';
 import { initChromeAutoHide } from './reader/chrome-visibility.js';
 import { initSeekGesture } from './reader/seek-gesture.js';
+import {
+  initMediaSession, cumulativeWords, totalWords, estimateDuration, estimatePosition,
+  paragraphAtPosition,
+} from './reader/media-session.js';
 import { createPrefetchRing } from './reader/prefetch-ring.js';
 import { createAudioEngine } from './reader/audio-engine.js';
 import { initDebugOverlay } from './reader/debug-overlay.js';
@@ -58,6 +62,7 @@ async function boot() {
   window.__readerState = state;
 
   setupControls();
+  setupMediaSession();
 
   // Reposition the pill instantly when the content area resizes
   // (window resize, font size slider, line height slider, etc).
@@ -182,12 +187,14 @@ async function play() {
   await ensureEngine();
   state.playing = true;
   state.engine.play();
+  mediaSession?.setPlaying(true);
 }
 
 function pause() {
   state.playing = false;
   $('#play-btn').textContent = '▶︎';
   if (state.engine) state.engine.pause();
+  mediaSession?.setPlaying(false);
 }
 
 function stop() {
@@ -704,6 +711,51 @@ function ensurePrefetchRing() {
 // and used by the module-level play() which fires on user gesture.
 let ensureEngine = async () => {};
 
+// ───── MediaSession (→ MPRIS on Linux) ─────
+//
+// Lets the desktop see and drive playback: media keys, and the Omarchy bar
+// widget. See reader/media-session.js for why album carries the app name and
+// why position is only published on paragraph boundaries.
+let mediaSession = null;
+let _cumWords = [];
+let _totalWords = 0;
+
+function mediaDuration() {
+  return estimateDuration(state.book, state.prefs?.speed);
+}
+
+function publishMediaPosition() {
+  if (!mediaSession) return;
+  const duration = mediaDuration();
+  mediaSession.setPosition(
+    duration,
+    estimatePosition(_cumWords, _totalWords, duration, state.curIdx),
+    // The <audio> element always runs at 1.0 — the chosen speed is baked into
+    // the synthesized audio by the prefetch ring, not applied as a rate.
+    1,
+  );
+}
+
+function setupMediaSession() {
+  _cumWords = cumulativeWords(state.paragraphs);
+  _totalWords = totalWords(state.paragraphs);
+
+  mediaSession = initMediaSession({
+    onPlay: () => play(),
+    onPause: () => pause(),
+    onPrev: () => { stop(); advanceParagraph(-1); },
+    onNext: () => { stop(); advanceParagraph(1); },
+    onSeekBy: (delta) => skipSeconds(delta),
+    onSeekTo: (seconds) => {
+      const idx = paragraphAtPosition(_cumWords, _totalWords, mediaDuration(), seconds);
+      if (state.engine) state.engine.seek(idx, 0);
+    },
+  });
+  mediaSession.setBook(state.book, `/api/books/${bookId}/cover`);
+  mediaSession.setPlaying(false);
+  publishMediaPosition();
+}
+
 function setupControls() {
   // ───── Engine subscription chains ─────
   const playSubs = [], pauseSubs = [], paraSubs = [];
@@ -871,6 +923,15 @@ function setupControls() {
     else openSheet();
   });
   backdrop.addEventListener('click', closeSheet);
+
+  // Keep the desktop's view of playback honest. Subscribing to the engine
+  // rather than to play()/pause() matters: the engine also pauses on its own
+  // (autoplay rejection, end of book), and those paths never call pause().
+  addOnPlay(() => mediaSession?.setPlaying(true));
+  addOnPause(() => mediaSession?.setPlaying(false));
+  // Paragraph boundaries are the only cadence position is published at — on a
+  // timer it produces a 1 Hz Seeked storm on the bus.
+  addOnParaChange(() => publishMediaPosition());
 
   // Body class drives the cursor gates in style.css — seek-to-position
   // targets are only clickable when audio is paused.

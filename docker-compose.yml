@@ -3,6 +3,13 @@
 #   docker compose up -d            # whole app at http://127.0.0.1:8000
 #   docker compose up -d kokoro-tts # just the TTS (e.g. running the reader on the host)
 #
+# The reader binds loopback only: a fresh clone never starts listening on a
+# network. To also reach it from a phone, add a docker-compose.override.yml
+# publishing a second address you trust — a Tailscale IP is the intended case,
+# since the tailnet supplies the identity this app deliberately lacks. Compose
+# loads that file automatically and appends to the port list, so loopback keeps
+# working. See README "Reading on your phone".
+#
 # Neither service needs a GPU — Kokoro runs on the CPU, fast enough for
 # gapless read-along.
 services:
@@ -27,6 +34,8 @@ services:
 
   # CPU-only Kokoro-82M (English). Model + 28 voices baked into the image (no
   # volume). Always-up; needs no GPU.
+  # Loopback-bound on purpose: an internal dependency of the reader, never
+  # something a phone should reach. Do not parameterise this bind address.
   kokoro-tts:
     build:
       context: .

@@ -6,3 +6,5 @@ __pycache__/
 build/
 dist/
 .coverage
+# Local compose overrides. Never commit a machine's bind address.
+docker-compose.override.yml

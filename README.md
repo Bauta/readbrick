@@ -32,6 +32,41 @@ docker compose up -d kokoro-tts   # just the TTS sidecar
 python -m server.app
 ```
 
+### Reading on your phone
+
+By default the reader binds **loopback only** — it is unreachable from any other
+device, and a fresh clone never starts listening on a network.
+
+Readbrick has **no login**. Anyone who can reach the port gets every user's
+library, reading progress and saved quotes. So rather than exposing it to your
+local network, put it on a [Tailscale](https://tailscale.com/) tailnet and bind
+it there: your own devices can reach it, and nothing else can.
+
+```bash
+tailscale ip -4                    # e.g. 100.73.233.28
+
+cat > docker-compose.override.yml <<'YAML'
+services:
+  reader:
+    ports:
+      - "100.73.233.28:8000:8000"   # your Tailscale IP
+YAML
+
+docker compose up -d
+```
+
+Compose loads `docker-compose.override.yml` automatically and **appends** to the
+port list, so `127.0.0.1:8000` keeps working alongside it. The file is
+gitignored — a bind address is specific to your machine.
+
+Then open `http://100.73.233.28:8000/` on your phone, with Tailscale running on
+both devices. The TTS sidecar stays loopback-bound either way.
+
+Two caveats. The container binds that exact address at start, so if Tailscale is
+down when Docker starts, the reader will not come up until it is back. And
+publishing on `0.0.0.0` exposes an unauthenticated reader to every device on
+your network — don't, unless you have put something in front of it.
+
 ---
 
 ## Features
