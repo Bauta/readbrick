@@ -70,9 +70,11 @@ to be mounted in, so add this to the same `docker-compose.override.yml`:
 services:
   reader:
     environment:
-      - READER_OMARCHY_THEME_DIR=/omarchy-theme
+      - READER_OMARCHY_THEME_DIR=/omarchy/theme
     volumes:
-      - ${HOME}/.local/state/omarchy/current/theme:/omarchy-theme:ro
+      # One level up from the theme directory, so theme.name — which Omarchy
+      # writes beside it, not inside it — comes along too.
+      - ${HOME}/.local/state/omarchy/current:/omarchy:ro
 ```
 
 Without it the option simply never appears — the reader is a standalone web app

@@ -78,28 +78,41 @@ def test_palette_requires_the_colours_the_reader_actually_needs(tmp_path, monkey
     assert read_palette() is None
 
 
-def test_theme_name_is_read_from_inside_an_override_dir(tmp_path, monkeypatch):
-    """An override must not make us read theme.name out of its parent.
-
-    Omarchy's own layout puts theme.name beside the theme directory, but with
-    READER_OMARCHY_THEME_DIR=/omarchy-theme the parent is "/" — not ours.
-    """
+def test_theme_name_prefers_a_name_inside_the_theme_dir(tmp_path, monkeypatch):
     from server.omarchy_theme import theme_name
-    d = tmp_path / "mounted"
+    d = tmp_path / "theme"
     d.mkdir()
-    (tmp_path / "theme.name").write_text("Outside The Mount\n")   # must be ignored
-    (d / "theme.name").write_text("Inside The Mount\n")
+    (tmp_path / "theme.name").write_text("Beside\n")
+    (d / "theme.name").write_text("Inside\n")
     monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
-    assert theme_name() == "Inside The Mount"
+    assert theme_name() == "Inside"
 
 
-def test_theme_name_is_none_when_an_override_dir_has_no_name(tmp_path, monkeypatch):
+def test_theme_name_falls_back_to_the_omarchy_layout_beside_the_dir(tmp_path, monkeypatch):
+    """Omarchy writes theme.name beside the theme directory, not inside it."""
     from server.omarchy_theme import theme_name
-    d = tmp_path / "mounted"
+    d = tmp_path / "theme"
     d.mkdir()
-    (tmp_path / "theme.name").write_text("Outside The Mount\n")
+    (tmp_path / "theme.name").write_text("Matte Black\n")
     monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
-    assert theme_name() is None
+    assert theme_name() == "Matte Black"
+
+
+def test_theme_name_never_reads_out_of_the_filesystem_root(monkeypatch):
+    """Mounting the theme dir at "/omarchy-theme" must not read "/theme.name"."""
+    from server import omarchy_theme
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", "/omarchy-theme")
+    reads = []
+    real_read = Path.read_text
+
+    def spy(self, *a, **kw):
+        reads.append(str(self))
+        return real_read(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "read_text", spy)
+    omarchy_theme.theme_name()
+    assert "/theme.name" not in reads
+    assert reads == ["/omarchy-theme/theme.name"]
 
 
 def test_theme_name_uses_omarchy_layout_without_an_override(tmp_path, monkeypatch):

@@ -53,14 +53,17 @@ def theme_dir() -> Path:
 def theme_name() -> Optional[str]:
     """The active theme's display name, if Omarchy recorded one.
 
-    Omarchy writes theme.name *beside* the theme directory, not inside it. That
-    parent lookup is only ours to make when we are using Omarchy's own layout:
-    with an explicit override, the parent directory belongs to someone else
-    (with READER_OMARCHY_THEME_DIR=/omarchy-theme it would be "/").
+    Omarchy writes theme.name *beside* the theme directory, not inside it, so
+    the parent has to be consulted — but never the filesystem root. Mounting
+    the theme directory straight at "/omarchy-theme" would otherwise make this
+    read "/theme.name", which is nobody's business but the root filesystem's.
+    Mount one level up instead (see README) and the name comes through.
     """
-    candidates = [theme_dir() / "theme.name"]
-    if not os.environ.get("READER_OMARCHY_THEME_DIR"):
-        candidates.append(theme_dir().parent / "theme.name")
+    directory = theme_dir()
+    candidates = [directory / "theme.name"]
+    parent = directory.parent
+    if parent != parent.parent:          # anything but the filesystem root
+        candidates.append(parent / "theme.name")
     for candidate in candidates:
         try:
             name = candidate.read_text().strip()
