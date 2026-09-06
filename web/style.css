@@ -110,9 +110,9 @@ button {
 button:active { transform: scale(0.97); }
 button:hover { background: var(--accent-soft); border-color: var(--accent); }
 button.primary {
-  background: var(--accent); color: var(--accent-on); border-color: var(--accent);
+  background: transparent; color: var(--accent); border-color: var(--accent);
 }
-button.primary:hover { filter: brightness(1.08); }
+button.primary:hover { background: transparent; filter: brightness(1.08); }
 
 /* Square tap-friendly icon button */
 button.tap {
@@ -128,14 +128,23 @@ button.tap {
   border: none;
   color: var(--fg);
 }
-button.tap:hover { background: var(--accent-soft); }
-button.tap.primary {
-  background: var(--accent);
-  color: var(--accent-on);
-  border-radius: var(--radius-pill);
-  font-size: 24px;
-  font-weight: 300;
+
+/* Transport glyphs (⏮ ⏭ ⏸ ⏳) default to emoji presentation — the colour-emoji
+   font paints a filled tile behind them. The variation selector alone is not
+   enough in Chromium, so name monochrome symbol fonts ahead of the fallback. */
+#prev-btn, #next-btn, .play-btn {
+  font-family: 'Noto Sans Symbols 2', 'Adwaita Mono', 'Apple Symbols',
+               'Segoe UI Symbol', var(--font-ui);
+  font-variant-emoji: text;
 }
+button.tap:hover { background: transparent; color: var(--accent); }
+/* Text-labelled tap button (Settings, Sleep) — wider than the square icon ones */
+button.tap.label {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 10px;
+}
+#upload-btn { font-size: 26px; font-weight: 300; }
 
 input[type="text"], select {
   font: inherit;
@@ -198,12 +207,12 @@ input[type="range"]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--fg);
   padding: 8px 14px;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   font-size: 14px;
   min-height: var(--tap);
   max-width: 200px;
@@ -505,7 +514,7 @@ body.reader-body { background: var(--bg); }
 
 .reader-header {
   display: grid;
-  grid-template-columns: var(--tap) var(--tap) 1fr var(--tap);
+  grid-template-columns: var(--tap) var(--tap) 1fr auto;
   align-items: center;
   gap: 8px;
   padding: calc(8px + var(--safe-top)) 12px 8px;
@@ -668,20 +677,20 @@ body:not(.audio-playing) .reader-footer-progress .progress-track {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-on);
+  background: transparent;
+  color: var(--fg);
   border: none;
   font-size: 22px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow);
   cursor: pointer;
-  transition: transform 80ms, filter 120ms;
+  transition: transform 80ms, color 120ms;
   padding: 0;
+  font-variant-emoji: text;
 }
-.play-btn:hover { filter: brightness(1.08); }
+.play-btn:hover { color: var(--accent); }
 .play-btn:active { transform: scale(0.94); }
 
 /* ───── Immersive mode: hide chrome during playback after idle ───── */

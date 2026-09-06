@@ -178,7 +178,7 @@ function renderWordsInParagraph(idx, words) {
 
 async function play() {
   if (state.paragraphs.length === 0) return;
-  $('#play-btn').textContent = '⏳';  // preparing audio…
+  $('#play-btn').textContent = '⏳︎';  // preparing audio…
   await ensureEngine();
   state.playing = true;
   state.engine.play();
@@ -186,7 +186,7 @@ async function play() {
 
 function pause() {
   state.playing = false;
-  $('#play-btn').textContent = '▶';
+  $('#play-btn').textContent = '▶︎';
   if (state.engine) state.engine.pause();
 }
 
@@ -880,7 +880,7 @@ function setupControls() {
     // If a play() attempt was rejected (e.g. autoplay policy) the engine
     // fires onPause without going through reader.js's pause(); make sure the
     // "preparing audio" glyph doesn't stick.
-    if ($('#play-btn').textContent === '⏳') $('#play-btn').textContent = '▶';
+    if ($('#play-btn').textContent === '⏳︎') $('#play-btn').textContent = '▶︎';
   });
 
   // Drive onTimeUpdate via requestAnimationFrame for smooth ~60Hz pill tracking.
@@ -893,8 +893,8 @@ function setupControls() {
   const tick = () => {
     if (!state.engine || state.engine.isPaused()) { rafId = null; return; }
     // Clear the "preparing…" glyph once audio is actually progressing.
-    if (state.engine.currentTime() > 0 && $('#play-btn').textContent === '⏳') {
-      $('#play-btn').textContent = '⏸';
+    if (state.engine.currentTime() > 0 && $('#play-btn').textContent === '⏳︎') {
+      $('#play-btn').textContent = '⏸︎';
     }
     onTimeUpdate();
     autoscroll.maybeScroll();

@@ -43,7 +43,7 @@ function applyThemeFromPrefs() {
 }
 
 function renderUserPill() {
-  $('#user-pill').textContent = state.user ? `👤 ${state.user.name}` : 'Pick a user';
+  $('#user-pill').textContent = state.user ? state.user.name : 'Pick a user';
 }
 
 function openUserPicker() {
