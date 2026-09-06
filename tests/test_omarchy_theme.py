@@ -126,6 +126,63 @@ def test_theme_name_uses_omarchy_layout_without_an_override(tmp_path, monkeypatc
     assert omarchy_theme.theme_name() == "Matte Black"
 
 
+# ───── legibility floor ─────
+#
+# A desktop theme is designed for panels and terminals, not for hours of body
+# text. A palette that looks fine on a bar can be genuinely unreadable at
+# length, so one that cannot carry body text is refused whole rather than
+# half-applied.
+
+def _palette(tmp_path, monkeypatch, **colors):
+    from server.omarchy_theme import read_palette
+    d = tmp_path / "theme"
+    d.mkdir()
+    body = "\n".join(f'{k} = "{v}"' for k, v in colors.items())
+    (d / "colors.toml").write_text(f'mode = "dark"\n{body}\n')
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
+    return read_palette()
+
+
+def test_accepts_a_readable_palette(tmp_path, monkeypatch):
+    """Matte Black, the theme actually in use: near-white on near-black."""
+    p = _palette(tmp_path, monkeypatch,
+                 background="#121212", foreground="#bebebe", accent="#e68e0d")
+    assert p is not None
+
+
+def test_rejects_a_palette_whose_body_text_is_unreadable(tmp_path, monkeypatch):
+    p = _palette(tmp_path, monkeypatch,
+                 background="#121212", foreground="#1a1a1a", accent="#e68e0d")
+    assert p is None
+
+
+def test_rejects_mid_grey_on_mid_grey(tmp_path, monkeypatch):
+    p = _palette(tmp_path, monkeypatch,
+                 background="#808080", foreground="#8a8a8a", accent="#ff0000")
+    assert p is None
+
+
+def test_accepts_a_light_theme(tmp_path, monkeypatch):
+    """The reverse case must work too — a light desktop yields a light reader."""
+    p = _palette(tmp_path, monkeypatch,
+                 background="#fbfaf7", foreground="#2a2520", accent="#b6541a")
+    assert p is not None
+
+
+def test_contrast_is_symmetric_and_bounded():
+    from server.omarchy_theme import contrast_ratio
+    assert contrast_ratio("#000000", "#ffffff") == pytest.approx(21, abs=0.1)
+    assert contrast_ratio("#ffffff", "#000000") == pytest.approx(21, abs=0.1)
+    assert contrast_ratio("#777777", "#777777") == pytest.approx(1, abs=0.01)
+
+
+def test_unparseable_colours_are_not_judged_on_contrast(tmp_path, monkeypatch):
+    """Named colours are valid CSS; refusing them for being unmeasurable is wrong."""
+    p = _palette(tmp_path, monkeypatch,
+                 background="black", foreground="white", accent="orange")
+    assert p is not None
+
+
 # ───── /api/theme ─────
 
 def test_theme_endpoint_reports_availability(client, theme_dir):

@@ -23,6 +23,10 @@ from typing import Optional
 # is worse than none (unreadable body text).
 REQUIRED = ("background", "foreground", "accent")
 
+# WCAG AA for body text. The reader is long-form: this is the one place a
+# desktop theme's priorities and a reading app's genuinely diverge.
+MIN_BODY_CONTRAST = 4.5
+
 # Colour values are interpolated into a stylesheet, so they are validated
 # rather than trusted: hex, rgb()/rgba(), or a bare CSS colour keyword.
 _SAFE_COLOR = re.compile(
@@ -86,7 +90,57 @@ def read_palette() -> Optional[dict]:
         return None
     if not all(_safe(data.get(k)) for k in REQUIRED):
         return None
+    if not _is_legible(data):
+        return None
     return data
+
+
+def _is_legible(palette: dict) -> bool:
+    """Can this palette carry body text for an hour?
+
+    A desktop theme is built for panels and terminals. One that looks sharp on
+    a bar can be punishing to read at length, and a half-applied palette is
+    worse than none — so a palette that cannot clear the floor is refused
+    whole. Colours we cannot measure (CSS keywords, rgb()) are not judged:
+    unmeasurable is not the same as unreadable.
+    """
+    ratio = contrast_ratio(palette.get("foreground"), palette.get("background"))
+    return ratio is None or ratio >= MIN_BODY_CONTRAST
+
+
+def contrast_ratio(one, two) -> Optional[float]:
+    """WCAG contrast ratio between two hex colours, or None if unmeasurable."""
+    first, second = _luminance(one), _luminance(two)
+    if first is None or second is None:
+        return None
+    lighter, darker = max(first, second), min(first, second)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _luminance(value) -> Optional[float]:
+    rgb = _to_rgb(value)
+    if rgb is None:
+        return None
+    channels = []
+    for raw in rgb:
+        c = raw / 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    red, green, blue = channels
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def _to_rgb(value) -> Optional[tuple]:
+    if not isinstance(value, str):
+        return None
+    text = value.strip().lstrip("#")
+    if len(text) == 3:
+        text = "".join(ch * 2 for ch in text)
+    if len(text) not in (6, 8):
+        return None
+    try:
+        return tuple(int(text[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return None
 
 
 def _safe(value) -> bool:

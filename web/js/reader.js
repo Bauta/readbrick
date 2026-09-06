@@ -383,7 +383,14 @@ function applyPrefs() {
       toast("Couldn't load that font — check your connection");
     });
   }
-  document.documentElement.dataset.theme = state.prefs.theme;
+  // "Auto" means "match what I'm looking at". Where the desktop tells us
+  // which side it is on, that beats the browser's colour-scheme preference:
+  // a freshly created browser profile has no stored preference at all, which
+  // is how a dark desktop ended up with a white reader.
+  const applied = (state.prefs.theme === 'auto' && _desktopMode)
+    ? _desktopMode
+    : state.prefs.theme;
+  document.documentElement.dataset.theme = applied;
   localStorage.setItem('reader.theme', state.prefs.theme);
 
   $('#speed-val').textContent = fmtSpeed(state.prefs.speed);
@@ -717,6 +724,10 @@ let ensureEngine = async () => {};
 // One more option beside Light / Sepia / Dark / Auto, never a replacement for
 // them: the reader is used on phones too, where the desktop's theme means
 // nothing. The colours themselves arrive as /api/theme.css.
+// Which side the desktop is on ('dark' | 'light'), when it says. Consulted by
+// applyPrefs so "Auto" follows the desktop rather than the browser.
+let _desktopMode = null;
+
 async function revealDesktopTheme() {
   const btn = $('#theme-omarchy');
   if (!btn) return;
@@ -724,6 +735,10 @@ async function revealDesktopTheme() {
   if (theme.available) {
     btn.hidden = false;
     if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
+    if (theme.mode === 'dark' || theme.mode === 'light') {
+      _desktopMode = theme.mode;
+      applyPrefs();   // re-apply now that Auto has a better answer
+    }
   } else if (state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —
     // fall back rather than render an unstyled page. Fire-and-forget: the

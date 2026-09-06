@@ -41,26 +41,62 @@ def create_app() -> FastAPI:
 
     # ───── HTML pages ─────
 
+    def app_file(request: Request, path: Path, **kwargs) -> Response:
+        """Serve a file the browser must revalidate before reusing.
+
+        These responses already carried an ETag, but an ETag only helps if the
+        browser asks. With no Cache-Control a browser falls back to heuristic
+        freshness and can reuse a cached copy for a long time without ever
+        revalidating — which is how a rebuilt reader kept serving the previous
+        build's markup and stylesheet.
+
+        "no-cache" does not mean "do not store": the copy is kept and reused on
+        a 304, so ordinary navigation costs a conditional request rather than
+        the bytes. Starlette's FileResponse does not answer conditional GETs
+        itself, so the 304 is made here — otherwise the ETag would be sent,
+        echoed back, and ignored.
+        """
+        headers = {"Cache-Control": "no-cache", **kwargs.pop("headers", {})}
+        # Hand FileResponse the stat up front: it only derives the ETag when it
+        # stats the file, which otherwise happens too late to compare against
+        # the request's If-None-Match.
+        try:
+            stat_result = path.stat()
+        except OSError:
+            raise HTTPException(404)
+        response = FileResponse(path, stat_result=stat_result, headers=headers, **kwargs)
+        etag = response.headers.get("etag")
+        if etag and etag in _requested_etags(request):
+            return Response(status_code=304, headers={
+                "ETag": etag,
+                "Cache-Control": headers["Cache-Control"],
+            })
+        return response
+
+    def _requested_etags(request: Request) -> set[str]:
+        header = request.headers.get("if-none-match", "")
+        return {tag.strip() for tag in header.split(",") if tag.strip()}
+
     @app.get("/")
-    def index() -> FileResponse:
-        return FileResponse(WEB_DIR / "index.html")
+    def index(request: Request) -> Response:
+        return app_file(request, WEB_DIR / "index.html")
 
     @app.get("/read/{book_id}")
-    def read_page(book_id: str) -> FileResponse:
-        return FileResponse(WEB_DIR / "read.html")
+    def read_page(request: Request, book_id: str) -> Response:
+        return app_file(request, WEB_DIR / "read.html")
 
     @app.get("/book/{book_id}")
-    def book_page(book_id: str) -> FileResponse:
-        return FileResponse(WEB_DIR / "book.html")
+    def book_page(request: Request, book_id: str) -> Response:
+        return app_file(request, WEB_DIR / "book.html")
 
     @app.get("/web/{path:path}")
-    def web_static(path: str) -> FileResponse:
+    def web_static(request: Request, path: str) -> Response:
         target = (WEB_DIR / path).resolve()
         if not str(target).startswith(str(WEB_DIR.resolve())):
             raise HTTPException(404)
         if not target.exists():
             raise HTTPException(404)
-        return FileResponse(target)
+        return app_file(request, target)
 
     # ───── desktop theme (Omarchy) ─────
 
@@ -81,7 +117,10 @@ def create_app() -> FastAPI:
         # Always 200 with text/css: the page links this unconditionally, and an
         # empty stylesheet is the correct answer on a non-Omarchy machine.
         css = omarchy_theme.palette_css(omarchy_theme.read_palette())
-        return Response(content=css, media_type="text/css")
+        # Revalidate: the desktop theme can change under a page that is already
+        # open, and this stylesheet is the only thing that carries the change.
+        return Response(content=css, media_type="text/css",
+                        headers={"Cache-Control": "no-cache"})
 
     # ───── users ─────
 
