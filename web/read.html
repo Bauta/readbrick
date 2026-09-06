@@ -65,7 +65,7 @@
     <div class="sheet-head"><h2>Settings</h2><button class="sheet-done" type="button">Done</button></div>
 
     <section class="settings-group">
-    <h3>Voice</h3>
+    <h3>Narration</h3>
     <div class="settings-row">
       <label>Voice</label>
       <select id="voice-select"></select>
@@ -112,17 +112,17 @@
     </section>
 
     <section class="settings-group">
-    <h3>Look</h3>
+    <h3>Appearance</h3>
     <div class="settings-row">
       <label>Theme</label>
-      <div class="theme-toggle">
-        <button data-theme="light">Light</button>
-        <button data-theme="sepia">Sepia</button>
-        <button data-theme="dark">Dark</button>
-        <button data-theme="auto">Auto</button>
-        <!-- Unhidden at boot only when the server finds an Omarchy palette. -->
-        <button data-theme="omarchy" id="theme-omarchy" hidden>Omarchy</button>
-      </div>
+      <select id="theme-select" aria-label="Theme">
+        <option value="light">Light</option>
+        <option value="sepia">Sepia</option>
+        <option value="dark">Dark</option>
+        <option value="auto">Auto</option>
+        <!-- Unhidden only when the server finds an Omarchy palette. -->
+        <option value="omarchy" hidden>Omarchy</option>
+      </select>
     </div>
 
 

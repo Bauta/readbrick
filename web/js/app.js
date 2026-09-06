@@ -59,27 +59,25 @@ let _desktop = null;   // { available, mode } from the server, once known
 async function setupSettings() {
   const sheet = $('#settings-sheet');
   const backdrop = $('#sheet-backdrop');
-  const toggle = $('#theme-toggle');
-  if (!sheet || !backdrop || !toggle) return;
+  const picker = $('#theme-select');
+  if (!sheet || !backdrop || !picker) return;
 
   setupSheet({ sheet, backdrop, trigger: $('#settings-btn') });
 
   const paint = () => {
     applyTheme(_themePref, _desktop);
-    markActiveTheme(toggle, _themePref);
+    markActiveTheme(picker, _themePref);
   };
 
-  toggle.querySelectorAll('button[data-theme]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      _themePref = btn.dataset.theme;
-      paint();
-      if (!state.user) return;
-      try {
-        await api.patchPrefs(state.user.id, { theme: _themePref });
-      } catch {
-        toast("Couldn't save the theme — it will reset next time");
-      }
-    });
+  picker.addEventListener('change', async () => {
+    _themePref = picker.value;
+    paint();
+    if (!state.user) return;
+    try {
+      await api.patchPrefs(state.user.id, { theme: _themePref });
+    } catch {
+      toast("Couldn't save the theme — it will reset next time");
+    }
   });
 
   // The stored preference, then the desktop's word on light/dark. Neither
@@ -89,7 +87,7 @@ async function setupSettings() {
       .then((prefs) => { _themePref = prefs.theme || 'auto'; paint(); })
       .catch(() => { _themePref = localStorage.getItem('reader.theme') || 'auto'; paint(); });
   }
-  revealDesktopTheme(toggle).then((theme) => { _desktop = theme; paint(); });
+  revealDesktopTheme(picker).then((theme) => { _desktop = theme; paint(); });
 }
 
 function renderUserPill() {

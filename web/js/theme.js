@@ -35,11 +35,10 @@ export function applyTheme(pref, desktop) {
   if (pref) localStorage.setItem('reader.theme', pref);
 }
 
-/** Highlight the picker button matching the stored preference. */
-export function markActiveTheme(container, pref) {
-  container.querySelectorAll('button[data-theme]').forEach((b) => {
-    b.classList.toggle('active', b.dataset.theme === pref);
-  });
+/** Reflect the stored preference in the picker (a <select>). */
+export function markActiveTheme(picker, pref) {
+  if (!picker) return;
+  picker.value = pref;
 }
 
 /**
@@ -47,12 +46,12 @@ export function markActiveTheme(container, pref) {
  * desktop can supply a palette. Returns { available, mode, name }; never
  * throws, because a reader running anywhere else simply has no desktop.
  */
-export async function revealDesktopTheme(container) {
+export async function revealDesktopTheme(picker) {
   const theme = await api.getTheme();
-  const btn = container.querySelector('button[data-theme="omarchy"]');
-  if (btn && theme.available) {
-    btn.hidden = false;
-    if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
+  const option = picker?.querySelector('option[value="omarchy"]');
+  if (option && theme.available) {
+    option.hidden = false;
+    if (theme.name) option.textContent = `Omarchy (${theme.name})`;
   }
   return theme;
 }

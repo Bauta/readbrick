@@ -415,7 +415,7 @@ function applyPrefs() {
   $('#text-width').value = String(tw);
   $('#tw-val').textContent = String(tw);
 
-  markActiveTheme($('.theme-toggle'), state.prefs.theme);
+  markActiveTheme($('#theme-select'), state.prefs.theme);
   renderFontSelect(fontFamily);
 
   const showImages = (state.prefs.show_images ?? 1) ? true : false;
@@ -748,7 +748,7 @@ function applyTheme() {
 // them: the reader is used on phones too, where the desktop's theme means
 // nothing. The colours themselves arrive as /api/theme.css.
 async function revealDesktopTheme() {
-  _desktop = await revealDesktop($('.theme-toggle'));
+  _desktop = await revealDesktop($('#theme-select'));
   applyTheme();   // re-apply now that Auto has a better answer
   if (!_desktop?.available && state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —
@@ -939,10 +939,8 @@ function setupControls() {
     rewarmCurrentParagraph();
   });
 
-  $$('.theme-toggle button').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      patchPref({ theme: btn.dataset.theme });
-    });
+  $('#theme-select').addEventListener('change', (e) => {
+    patchPref({ theme: e.target.value });
   });
 
   $('#font-select').addEventListener('change', (e) => {
