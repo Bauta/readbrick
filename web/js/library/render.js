@@ -203,7 +203,8 @@ function renderCard(b) {
     ...(metaLine ? [el('p', { class: 'card-meta', text: metaLine })] : []),
   ]);
 
-  const card = el('div', { class: 'book-card' }, [cover, meta]);
+  // Addressable, so the upload flow can scroll a just-added book into view.
+  const card = el('div', { class: 'book-card', attrs: { 'data-book-id': b.id } }, [cover, meta]);
   card.addEventListener('click', () => {
     location.href = `/book/${encodeURIComponent(b.id)}`;
   });

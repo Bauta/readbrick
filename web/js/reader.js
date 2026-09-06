@@ -3,7 +3,8 @@ import { api, session, toast } from './api.js';
 import { humanizeAgo } from './util.js';
 import { state, bookId, SKIP_SECONDS } from './reader/state.js';
 import { setupSession } from './reader/session.js';
-import { setupChapterSidebar } from './reader/chapters.js';
+import { setupChapterSidebar, activeChapterIndex } from './reader/chapters.js';
+import { setupSheet } from '../js/sheet.js';
 import { setupSleepTimer } from './reader/sleep.js';
 import { applyQuoteHighlights, setupQuoteSelection, setupQuotePopover } from './reader/quotes.js';
 import { initAutoscroll } from './reader/autoscroll.js';
@@ -329,8 +330,27 @@ function saveProgress() {
 function updateProgressBar() {
   const total = state.paragraphs.length;
   const idx = state.curIdx;
-  $('#prog-text').textContent = `${idx + 1} / ${total}`;
   $('#prog-fill').style.width = `${total > 0 ? ((idx + 1) / total) * 100 : 0}%`;
+  // Speak the reader's language, as the library already does: where you are
+  // and how long is left — not "6 / 2318". The paragraph index stays on the
+  // tooltip and in the debug overlay, where it is useful.
+  ensureTimeline();
+  const chapter = state.book?.chapters?.[activeChapterIndex()];
+  const chapterTitle = chapter?.title?.trim() || '';
+  const duration = estimateDuration(state.book, state.prefs?.speed);
+  const position = estimatePosition(_cumWords, _totalWords, duration, idx);
+  const left = duration ? fmtTimeLeft((duration - position) / 60) : '';
+  const text = $('#prog-text');
+  text.textContent = [chapterTitle, left].filter(Boolean).join(' · ') || `${idx + 1} / ${total}`;
+  text.title = `Paragraph ${idx + 1} of ${total}`;
+}
+
+function fmtTimeLeft(minutes) {
+  if (minutes < 1) return 'under a minute left';
+  if (minutes < 60) return `${Math.round(minutes)} min left`;
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return m ? `${h} h ${m} min left` : `${h} h left`;
 }
 
 // ───── prefs / settings ─────
@@ -763,9 +783,16 @@ function publishMediaPosition() {
   );
 }
 
-function setupMediaSession() {
+// Word timeline of the book, computed once; both the progress text and the
+// MediaSession position derive from it.
+function ensureTimeline() {
+  if (_cumWords.length || !state.paragraphs.length) return;
   _cumWords = cumulativeWords(state.paragraphs);
   _totalWords = totalWords(state.paragraphs);
+}
+
+function setupMediaSession() {
+  ensureTimeline();
 
   mediaSession = initMediaSession({
     onPlay: () => play(),
@@ -942,24 +969,12 @@ function setupControls() {
   initLightbox();
 
   // Settings sheet open/close with backdrop
-  const sheet = $('#settings-sheet');
-  const backdrop = $('#sheet-backdrop');
-  const openSheet = () => {
-    closeFontPanel();
-    sheet.classList.add('open');
-    backdrop.hidden = false;
-    requestAnimationFrame(() => backdrop.classList.add('open'));
-  };
-  const closeSheet = () => {
-    sheet.classList.remove('open');
-    backdrop.classList.remove('open');
-    setTimeout(() => { backdrop.hidden = true; }, 240);
-  };
-  $('#settings-btn').addEventListener('click', () => {
-    if (sheet.classList.contains('open')) closeSheet();
-    else openSheet();
+  const { close: closeSheet } = setupSheet({
+    sheet: $('#settings-sheet'),
+    backdrop: $('#sheet-backdrop'),
+    trigger: $('#settings-btn'),
+    onOpen: closeFontPanel,
   });
-  backdrop.addEventListener('click', closeSheet);
 
   // Keep the desktop's view of playback honest. Subscribing to the engine
   // rather than to play()/pause() matters: the engine also pauses on its own

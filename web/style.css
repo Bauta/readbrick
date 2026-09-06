@@ -1478,10 +1478,13 @@ mark.quote {
 /* ───── First-run seek-gesture hint ───── */
 
 .seek-hint {
+  /* Anchored to the gutter it describes, not over the progress bar. */
   position: fixed;
-  left: 50%;
-  bottom: calc(80px + var(--safe-bottom));
-  transform: translateX(-50%) translateY(8px);
+  right: 10px;
+  top: 50%;
+  max-width: 132px;
+  text-align: center;
+  transform: translateY(-50%) translateX(8px);
   padding: 10px 16px;
   background: color-mix(in srgb, var(--fg) 88%, transparent);
   color: var(--bg);
@@ -1495,7 +1498,7 @@ mark.quote {
 
 .seek-hint.visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(-50%) translateX(0);
 }
 
 /* ───── offline audio pre-cache (book detail) ───── */
@@ -1642,3 +1645,63 @@ body.lightbox-open { overflow: hidden; }
   .lightbox-img { transition: none; transform: none; }
   .switch, .switch::after { transition: none; }
 }
+
+/* ───── Walkthrough fixes ───── */
+
+/* The book page shares the reader header but has no Settings button, so the
+   four-column grid put its title in a 44px column. Three columns here. */
+.book-detail-body .reader-header {
+  grid-template-columns: var(--tap) 1fr var(--tap);
+}
+
+/* On a wide window the transport was flung to the corners of the screen while
+   the text sat in a 776px column. Keep the controls under the words. */
+.reader-footer-progress,
+.reader-footer-controls {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+#prog-text {
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sheets: a visible way out, and rows in groups rather than eight peers. */
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sheet-head h2 { margin: 0; }
+.sheet-done {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  min-height: var(--tap);
+  padding: 0 4px;
+}
+.sheet-done:hover { background: transparent; text-decoration: underline; }
+.settings-group {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.settings-group:first-of-type { margin-top: 4px; padding-top: 0; border-top: 0; }
+.settings-group > h3 {
+  margin: 0 0 4px;
+  font: 600 11px/1.4 var(--font-ui);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+/* In-app confirm (removing a reader) */
+.modal.confirm .confirm-body { color: var(--fg-muted); margin: 8px 0 18px; }
+.modal.confirm .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.modal.confirm .danger { color: var(--color-danger); border-color: var(--color-danger); }

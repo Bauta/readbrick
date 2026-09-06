@@ -5,10 +5,13 @@
 // reader.js (still part of the core playback module). When the
 // core is split further, these can be replaced with imports.
 import { state } from './state.js';
+import { totalWords } from './media-session.js';
+
+const WORDS_PER_MINUTE = 150;   // matches server/config.py
 
 const $ = (sel) => document.querySelector(sel);
 
-function _activeChapterIdx() {
+export function activeChapterIndex() {
   if (!state.book || !state.book.chapters) return 0;
   for (let i = 0; i < state.book.chapters.length; i++) {
     const ch = state.book.chapters[i];
@@ -25,8 +28,11 @@ function _renderChapterList({ seekToParagraph, close }) {
   if (!host) return;
   host.replaceChildren();
   const chapters = (state.book && state.book.chapters) || [];
-  const active = _activeChapterIdx();
+  const active = activeChapterIndex();
   chapters.forEach((ch, i) => {
+    // EPUB structure produces "chapters" with nothing in them — section
+    // wrappers, part dividers. Nobody can go to an empty room; hide them.
+    if (!ch.paragraphs || ch.paragraphs.length === 0) return;
     const row = document.createElement('button');
     row.className = 'chapter-row' + (i === active ? ' active' : '');
     const title = document.createElement('span');
@@ -34,8 +40,9 @@ function _renderChapterList({ seekToParagraph, close }) {
     title.textContent = ch.title && ch.title.trim() ? ch.title : `Chapter ${i + 1}`;
     const meta = document.createElement('span');
     meta.className = 'chapter-row-meta';
-    const count = ch.paragraphs ? ch.paragraphs.length : 0;
-    meta.textContent = `${count} paragraph${count === 1 ? '' : 's'}`;
+    // Minutes, to match the library — a paragraph count means nothing to a reader.
+    const minutes = Math.max(1, Math.round(totalWords(ch.paragraphs) / WORDS_PER_MINUTE));
+    meta.textContent = `${minutes} min`;
     row.appendChild(title);
     row.appendChild(meta);
     row.addEventListener('click', () => {

@@ -4,6 +4,7 @@ import { state, setSearch } from './library/state.js';
 import { setupUploadZone } from './library/upload.js';
 import { renderLibrary, el } from './library/render.js';
 import { applyTheme, markActiveTheme, revealDesktopTheme } from './theme.js';
+import { setupSheet } from './sheet.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -61,21 +62,7 @@ async function setupSettings() {
   const toggle = $('#theme-toggle');
   if (!sheet || !backdrop || !toggle) return;
 
-  const openSheet = () => {
-    sheet.classList.add('open');
-    backdrop.hidden = false;
-    requestAnimationFrame(() => backdrop.classList.add('open'));
-  };
-  const closeSheet = () => {
-    sheet.classList.remove('open');
-    backdrop.classList.remove('open');
-    setTimeout(() => { backdrop.hidden = true; }, 240);
-  };
-  $('#settings-btn').addEventListener('click', () => {
-    if (sheet.classList.contains('open')) closeSheet();
-    else openSheet();
-  });
-  backdrop.addEventListener('click', closeSheet);
+  setupSheet({ sheet, backdrop, trigger: $('#settings-btn') });
 
   const paint = () => {
     applyTheme(_themePref, _desktop);
@@ -109,6 +96,28 @@ function renderUserPill() {
   $('#user-pill').textContent = state.user ? state.user.name : 'Pick a user';
 }
 
+function confirmDialog({ title, body, confirmLabel }) {
+  return new Promise((resolve) => {
+    const backdrop = el('div', { class: 'modal-backdrop' });
+    const modal = el('div', { class: 'modal confirm' });
+    modal.addEventListener('click', (e) => e.stopPropagation());
+    const finish = (answer) => { backdrop.remove(); resolve(answer); };
+    modal.appendChild(el('h2', { text: title }));
+    modal.appendChild(el('p', { class: 'confirm-body', text: body }));
+    const row = el('div', { class: 'row confirm-actions' });
+    const cancel = el('button', { text: 'Cancel' });
+    const go = el('button', { class: 'danger', text: confirmLabel });
+    cancel.addEventListener('click', () => finish(false));
+    go.addEventListener('click', () => finish(true));
+    row.append(cancel, go);
+    modal.appendChild(row);
+    backdrop.addEventListener('click', () => finish(false));
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+    cancel.focus();
+  });
+}
+
 function openUserPicker() {
   const backdrop = el('div', { class: 'modal-backdrop' });
   const modal = el('div', { class: 'modal' });
@@ -134,7 +143,15 @@ function openUserPicker() {
     });
     del.addEventListener('click', async (ev) => {
       ev.stopPropagation();
-      if (!confirm(`Delete user "${u.name}"? Progress for this user will be lost.`)) return;
+      // In-app, not the browser's native confirm(): it says what is actually
+      // lost, it matches how deleting a book already asks, and it works the
+      // same inside the desktop app window.
+      const ok = await confirmDialog({
+        title: `Remove ${u.name}?`,
+        body: 'Their reading positions and saved quotes go with them. The books stay.',
+        confirmLabel: 'Remove',
+      });
+      if (!ok) return;
       await api.deleteUser(u.id);
       state.users = state.users.filter((x) => x.id !== u.id);
       if (state.user && state.user.id === u.id) {

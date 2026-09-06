@@ -2,6 +2,7 @@
 // refresh + delete actions.
 import { api, session, toast } from './api.js';
 import { el, humanizeAgo, fmtMinutes, fmtSecondsAsHM } from './util.js';
+import { applyTheme } from './theme.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -15,9 +16,18 @@ const state = {
   voiceId: 'kokoro:af_heart',
 };
 
+// The book page was the one screen that never applied the theme — it flashed
+// cream in a dark app every time a cover was tapped. Paint the cached choice
+// immediately, then correct it once the real preference and the desktop's
+// answer are known, exactly as the library does.
 function applyThemeFromPrefs() {
   const cached = localStorage.getItem('reader.theme');
-  if (cached) document.documentElement.dataset.theme = cached;
+  if (cached) applyTheme(cached, null);
+}
+
+async function applyThemeFromServer(prefs) {
+  const desktop = await api.getTheme();
+  applyTheme(prefs?.theme || localStorage.getItem('reader.theme') || 'auto', desktop);
 }
 
 async function boot() {
@@ -35,6 +45,7 @@ async function boot() {
     state.quotes = quotes;
     if (progress) state.book.progress = progress;
     if (prefs?.voice_id) state.voiceId = prefs.voice_id;
+    applyThemeFromServer(prefs);   // not awaited: the cached theme is already painted
   } catch (e) {
     $('#book-detail-content').textContent = `Could not load book: ${e.message}`;
     return;
@@ -177,7 +188,6 @@ function renderCovers() {
   tiles.push(uploadTile);
 
   return el('section', { class: 'detail-covers' }, [
-    el('h2', { class: 'detail-section-h2', text: 'Cover' }),
     el('div', { class: 'cover-grid' }, tiles),
   ]);
 }
