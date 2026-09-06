@@ -1,6 +1,6 @@
 [project]
 name = "reader"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local self-hosted read-along ebook reader with English TTS and word-by-word highlighting"
 requires-python = ">=3.11"
 dependencies = [
