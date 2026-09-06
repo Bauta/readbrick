@@ -169,6 +169,36 @@ def test_accepts_a_light_theme(tmp_path, monkeypatch):
     assert p is not None
 
 
+def test_a_low_contrast_desktop_still_reports_which_side_it_is_on(client, tmp_path, monkeypatch):
+    """The palette is unusable, but Auto still needs to know the desktop is dark.
+
+    Tying the two together would hand a low-contrast user exactly the
+    white-reader-on-a-dark-desktop bug the mode reporting exists to prevent.
+    """
+    d = tmp_path / "theme"
+    d.mkdir()
+    (d / "colors.toml").write_text(
+        'mode = "dark"\nbackground = "#121212"\n'
+        'foreground = "#1a1a1a"\naccent = "#e68e0d"\n'
+    )
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
+    body = client.get("/api/theme").json()
+    assert body["available"] is False    # colours refused
+    assert body["mode"] == "dark"        # …but the side is still reported
+
+
+def test_mode_is_none_when_there_is_no_theme_at_all(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(tmp_path / "nope"))
+    assert client.get("/api/theme").json()["mode"] is None
+
+
+def test_hex_with_alpha_is_treated_as_unmeasurable(tmp_path, monkeypatch):
+    """A translucent colour's real contrast depends on what is behind it."""
+    p = _palette(tmp_path, monkeypatch,
+                 background="#12121200", foreground="#1a1a1a00", accent="#e68e0d")
+    assert p is not None, "unmeasurable must fail open, not be guessed at"
+
+
 def test_contrast_is_symmetric_and_bounded():
     from server.omarchy_theme import contrast_ratio
     assert contrast_ratio("#000000", "#ffffff") == pytest.approx(21, abs=0.1)

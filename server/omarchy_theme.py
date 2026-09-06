@@ -78,15 +78,20 @@ def theme_name() -> Optional[str]:
     return None
 
 
-def read_palette() -> Optional[dict]:
-    """The active palette, or None when Omarchy is absent or unusable."""
-    path = theme_dir() / "colors.toml"
+def _read_colors() -> Optional[dict]:
+    """Whatever colors.toml holds, unjudged, or None if it cannot be read."""
     try:
-        with open(path, "rb") as fh:
+        with open(theme_dir() / "colors.toml", "rb") as fh:
             data = tomllib.load(fh)
     except (OSError, tomllib.TOMLDecodeError):
         return None
-    if not isinstance(data, dict):
+    return data if isinstance(data, dict) else None
+
+
+def read_palette() -> Optional[dict]:
+    """The active palette, or None when Omarchy is absent or unusable."""
+    data = _read_colors()
+    if data is None:
         return None
     if not all(_safe(data.get(k)) for k in REQUIRED):
         return None
@@ -95,14 +100,33 @@ def read_palette() -> Optional[dict]:
     return data
 
 
+def theme_mode() -> Optional[str]:
+    """Which side the desktop is on: 'dark', 'light', or None if it won't say.
+
+    Deliberately independent of whether the palette is *usable*. The reader's
+    "Auto" theme follows this, and a desktop whose colours are too low-contrast
+    to borrow is still a desktop that knows whether it is dark — tying the two
+    together would hand a low-contrast user the exact white-reader-on-a-dark-
+    desktop bug this is here to prevent.
+    """
+    data = _read_colors() or {}
+    mode = data.get("mode")
+    return mode if mode in ("dark", "light") else None
+
+
 def _is_legible(palette: dict) -> bool:
     """Can this palette carry body text for an hour?
 
     A desktop theme is built for panels and terminals. One that looks sharp on
     a bar can be punishing to read at length, and a half-applied palette is
     worse than none — so a palette that cannot clear the floor is refused
-    whole. Colours we cannot measure (CSS keywords, rgb()) are not judged:
-    unmeasurable is not the same as unreadable.
+    whole. Colours we cannot measure (CSS keywords, rgb(), hex with alpha) are
+    not judged: unmeasurable is not the same as unreadable.
+
+    Scope: this checks body text only — `foreground` against `background`.
+    Muted secondary text is not held to the same floor, because AA for body
+    text is routinely stricter than themes make their muted colours, and
+    rejecting on that would refuse most real themes.
     """
     ratio = contrast_ratio(palette.get("foreground"), palette.get("background"))
     return ratio is None or ratio >= MIN_BODY_CONTRAST
@@ -132,10 +156,16 @@ def _luminance(value) -> Optional[float]:
 def _to_rgb(value) -> Optional[tuple]:
     if not isinstance(value, str):
         return None
-    text = value.strip().lstrip("#")
+    text = value.strip()
+    if not text.startswith("#"):
+        return None
+    text = text[1:]
     if len(text) == 3:
         text = "".join(ch * 2 for ch in text)
-    if len(text) not in (6, 8):
+    # Only fully opaque colours are measurable. Alpha would change the effective
+    # contrast against whatever is behind it, and guessing that is worse than
+    # declining to judge.
+    if len(text) != 6:
         return None
     try:
         return tuple(int(text[i:i + 2], 16) for i in (0, 2, 4))

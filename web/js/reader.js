@@ -383,15 +383,7 @@ function applyPrefs() {
       toast("Couldn't load that font — check your connection");
     });
   }
-  // "Auto" means "match what I'm looking at". Where the desktop tells us
-  // which side it is on, that beats the browser's colour-scheme preference:
-  // a freshly created browser profile has no stored preference at all, which
-  // is how a dark desktop ended up with a white reader.
-  const applied = (state.prefs.theme === 'auto' && _desktopMode)
-    ? _desktopMode
-    : state.prefs.theme;
-  document.documentElement.dataset.theme = applied;
-  localStorage.setItem('reader.theme', state.prefs.theme);
+  applyTheme();
 
   $('#speed-val').textContent = fmtSpeed(state.prefs.speed);
   $('#speed').value = String(state.prefs.speed);
@@ -719,15 +711,30 @@ function ensurePrefetchRing() {
 // and used by the module-level play() which fires on user gesture.
 let ensureEngine = async () => {};
 
+// Which side the desktop is on ('dark' | 'light'), when it says. Declared up
+// here because applyTheme reads it, and that runs before the fetch resolves.
+let _desktopMode = null;
+
+// Just the theme attribute — deliberately not the whole of applyPrefs, which
+// re-injects the reader font and would fire a second network load (and a
+// second failure toast) every time the theme is re-applied.
+function applyTheme() {
+  // "Auto" means "match what I'm looking at". Where the desktop says which
+  // side it is on, that beats the browser's colour-scheme preference: a
+  // freshly created browser profile has no stored preference at all, which is
+  // how a dark desktop ended up with a white reader.
+  const applied = (state.prefs.theme === 'auto' && _desktopMode)
+    ? _desktopMode
+    : state.prefs.theme;
+  document.documentElement.dataset.theme = applied;
+  localStorage.setItem('reader.theme', state.prefs.theme);
+}
+
 // ───── Desktop palette (Omarchy) ─────
 //
 // One more option beside Light / Sepia / Dark / Auto, never a replacement for
 // them: the reader is used on phones too, where the desktop's theme means
 // nothing. The colours themselves arrive as /api/theme.css.
-// Which side the desktop is on ('dark' | 'light'), when it says. Consulted by
-// applyPrefs so "Auto" follows the desktop rather than the browser.
-let _desktopMode = null;
-
 async function revealDesktopTheme() {
   const btn = $('#theme-omarchy');
   if (!btn) return;
@@ -737,7 +744,7 @@ async function revealDesktopTheme() {
     if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
     if (theme.mode === 'dark' || theme.mode === 'light') {
       _desktopMode = theme.mode;
-      applyPrefs();   // re-apply now that Auto has a better answer
+      applyTheme();   // re-apply now that Auto has a better answer
     }
   } else if (state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —

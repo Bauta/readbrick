@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
 
     # ───── HTML pages ─────
 
-    def app_file(request: Request, path: Path, **kwargs) -> Response:
+    def app_file(request: Request, path: Path) -> Response:
         """Serve a file the browser must revalidate before reusing.
 
         These responses already carried an ETag, but an ETag only helps if the
@@ -56,26 +56,44 @@ def create_app() -> FastAPI:
         itself, so the 304 is made here — otherwise the ETag would be sent,
         echoed back, and ignored.
         """
-        headers = {"Cache-Control": "no-cache", **kwargs.pop("headers", {})}
+        headers = {"Cache-Control": "no-cache"}
         # Hand FileResponse the stat up front: it only derives the ETag when it
         # stats the file, which otherwise happens too late to compare against
         # the request's If-None-Match.
         try:
             stat_result = path.stat()
-        except OSError:
-            raise HTTPException(404)
-        response = FileResponse(path, stat_result=stat_result, headers=headers, **kwargs)
+        except FileNotFoundError as exc:
+            raise HTTPException(404) from exc
+        except OSError as exc:
+            # Unreadable is not missing. Reporting a permissions or I/O fault
+            # as 404 sends whoever debugs it looking for the wrong thing.
+            logger.warning("cannot serve %s: %s", path, exc)
+            raise HTTPException(500) from exc
+        response = FileResponse(path, stat_result=stat_result, headers=headers)
         etag = response.headers.get("etag")
-        if etag and etag in _requested_etags(request):
+        if etag and _etag_matches(request, etag):
             return Response(status_code=304, headers={
                 "ETag": etag,
+                "Last-Modified": response.headers.get("last-modified", ""),
                 "Cache-Control": headers["Cache-Control"],
             })
         return response
 
-    def _requested_etags(request: Request) -> set[str]:
+    def _etag_matches(request: Request, etag: str) -> bool:
+        """RFC 9110 §13.1.2: If-None-Match uses *weak* comparison.
+
+        So `W/"abc"` has to match `"abc"` — otherwise any intermediary that
+        weakens the validator quietly downgrades every request to a full 200,
+        forever. `*` matches whenever a representation exists.
+        """
         header = request.headers.get("if-none-match", "")
-        return {tag.strip() for tag in header.split(",") if tag.strip()}
+        candidates = {tag.strip() for tag in header.split(",") if tag.strip()}
+        if "*" in candidates:
+            return True
+        return _weaken(etag) in {_weaken(tag) for tag in candidates}
+
+    def _weaken(tag: str) -> str:
+        return tag[2:] if tag.startswith("W/") else tag
 
     @app.get("/")
     def index(request: Request) -> Response:
@@ -104,12 +122,14 @@ def create_app() -> FastAPI:
     def api_theme():
         """Whether the reader can offer the desktop's palette, and which one."""
         palette = omarchy_theme.read_palette()
-        if not palette:
-            return {"available": False}
         return {
-            "available": True,
-            "name": omarchy_theme.theme_name(),
-            "mode": palette.get("mode"),
+            # Whether the desktop's colours can be borrowed…
+            "available": bool(palette),
+            "name": omarchy_theme.theme_name() if palette else None,
+            # …reported separately from which side it is on. A desktop whose
+            # palette is too low-contrast to borrow still knows it is dark, and
+            # the reader's "Auto" theme needs that either way.
+            "mode": omarchy_theme.theme_mode(),
         }
 
     @app.get("/api/theme.css")
