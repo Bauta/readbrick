@@ -726,8 +726,9 @@ async function revealDesktopTheme() {
     if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
   } else if (state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —
-    // fall back rather than render an unstyled page.
-    patchPref({ theme: 'auto' });
+    // fall back rather than render an unstyled page. Fire-and-forget: the
+    // fallback is cosmetic, and boot() must not stall on it.
+    patchPref({ theme: 'auto' }).catch(() => {});
   }
 }
 
@@ -763,14 +764,24 @@ function setupMediaSession() {
   mediaSession = initMediaSession({
     onPlay: () => play(),
     onPause: () => pause(),
-    onPrev: () => { stop(); advanceParagraph(-1); },
-    onNext: () => { stop(); advanceParagraph(1); },
-    onSeekBy: (delta) => skipSeconds(delta),
+    // No stop() here, unlike the footer buttons: a media key meaning "next
+    // track" must not halt reading. advanceParagraph seeks the engine, which
+    // keeps playing if it already was.
+    onPrev: () => { advanceParagraph(-1); publishMediaPosition(); },
+    onNext: () => { advanceParagraph(1); publishMediaPosition(); },
+    // Republish after any seek that stays inside a paragraph — the paragraph
+    // -change subscription would not fire, leaving the bus position stale.
+    onSeekBy: (delta) => { skipSeconds(delta); publishMediaPosition(); },
     onSeekTo: (seconds) => {
       const idx = paragraphAtPosition(_cumWords, _totalWords, mediaDuration(), seconds);
       if (state.engine) state.engine.seek(idx, 0);
+      publishMediaPosition();
     },
   });
+
+  // Leaving the page should retract the player rather than leave a stale one
+  // on the bus for the desktop to keep showing.
+  window.addEventListener('pagehide', () => mediaSession?.clear());
   mediaSession.setBook(state.book, `/api/books/${bookId}/cover`);
   mediaSession.setPlaying(false);
   publishMediaPosition();

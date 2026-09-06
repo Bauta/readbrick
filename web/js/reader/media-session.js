@@ -71,19 +71,19 @@ export function estimateDuration(book, rate) {
 }
 
 /** Where paragraph `idx` starts, in seconds into the whole book. */
-export function estimatePosition(cumWords, totalWords, durationSec, idx) {
-  if (!totalWords || !durationSec) return 0;
+export function estimatePosition(cumWords, bookWords, durationSec, idx) {
+  if (!bookWords || !durationSec) return 0;
   const consumed = cumWords[idx] ?? cumWords[cumWords.length - 1] ?? 0;
-  return Math.min(durationSec, (consumed / totalWords) * durationSec);
+  return Math.min(durationSec, (consumed / bookWords) * durationSec);
 }
 
 /**
  * Inverse of estimatePosition: which paragraph contains `seconds`. Paragraph
  * granularity is the honest limit — the engine seeks to paragraph starts.
  */
-export function paragraphAtPosition(cumWords, totalWords, durationSec, seconds) {
-  if (!totalWords || !durationSec || cumWords.length === 0) return 0;
-  const targetWords = (Math.max(0, seconds) / durationSec) * totalWords;
+export function paragraphAtPosition(cumWords, bookWords, durationSec, seconds) {
+  if (!bookWords || !durationSec || cumWords.length === 0) return 0;
+  const targetWords = (Math.max(0, seconds) / durationSec) * bookWords;
   let idx = 0;
   while (idx + 1 < cumWords.length && cumWords[idx + 1] <= targetWords) idx += 1;
   return idx;

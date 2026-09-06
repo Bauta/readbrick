@@ -6,6 +6,8 @@ did before.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -74,6 +76,41 @@ def test_palette_requires_the_colours_the_reader_actually_needs(tmp_path, monkey
     (d / "colors.toml").write_text('mode = "dark"\nselection = "#111111"\n')
     monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
     assert read_palette() is None
+
+
+def test_theme_name_is_read_from_inside_an_override_dir(tmp_path, monkeypatch):
+    """An override must not make us read theme.name out of its parent.
+
+    Omarchy's own layout puts theme.name beside the theme directory, but with
+    READER_OMARCHY_THEME_DIR=/omarchy-theme the parent is "/" — not ours.
+    """
+    from server.omarchy_theme import theme_name
+    d = tmp_path / "mounted"
+    d.mkdir()
+    (tmp_path / "theme.name").write_text("Outside The Mount\n")   # must be ignored
+    (d / "theme.name").write_text("Inside The Mount\n")
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
+    assert theme_name() == "Inside The Mount"
+
+
+def test_theme_name_is_none_when_an_override_dir_has_no_name(tmp_path, monkeypatch):
+    from server.omarchy_theme import theme_name
+    d = tmp_path / "mounted"
+    d.mkdir()
+    (tmp_path / "theme.name").write_text("Outside The Mount\n")
+    monkeypatch.setenv("READER_OMARCHY_THEME_DIR", str(d))
+    assert theme_name() is None
+
+
+def test_theme_name_uses_omarchy_layout_without_an_override(tmp_path, monkeypatch):
+    """Default layout: theme.name really does sit beside the theme directory."""
+    from server import omarchy_theme
+    (tmp_path / "theme").mkdir()
+    (tmp_path / "theme.name").write_text("Matte Black\n")
+    monkeypatch.delenv("READER_OMARCHY_THEME_DIR", raising=False)
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(omarchy_theme, "theme_dir", lambda: tmp_path / "theme")
+    assert omarchy_theme.theme_name() == "Matte Black"
 
 
 # ───── /api/theme ─────

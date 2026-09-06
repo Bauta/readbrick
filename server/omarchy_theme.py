@@ -46,8 +46,29 @@ _VAR_MAP = (
 def theme_dir() -> Path:
     override = os.environ.get("READER_OMARCHY_THEME_DIR")
     if override:
-        return Path(override)
+        return Path(override).expanduser()
     return Path.home() / ".local/state/omarchy/current/theme"
+
+
+def theme_name() -> Optional[str]:
+    """The active theme's display name, if Omarchy recorded one.
+
+    Omarchy writes theme.name *beside* the theme directory, not inside it. That
+    parent lookup is only ours to make when we are using Omarchy's own layout:
+    with an explicit override, the parent directory belongs to someone else
+    (with READER_OMARCHY_THEME_DIR=/omarchy-theme it would be "/").
+    """
+    candidates = [theme_dir() / "theme.name"]
+    if not os.environ.get("READER_OMARCHY_THEME_DIR"):
+        candidates.append(theme_dir().parent / "theme.name")
+    for candidate in candidates:
+        try:
+            name = candidate.read_text().strip()
+        except OSError:
+            continue
+        if name:
+            return name
+    return None
 
 
 def read_palette() -> Optional[dict]:
@@ -63,14 +84,6 @@ def read_palette() -> Optional[dict]:
     if not all(_safe(data.get(k)) for k in REQUIRED):
         return None
     return data
-
-
-def theme_name() -> Optional[str]:
-    """The active theme's display name, if Omarchy recorded one."""
-    try:
-        return (theme_dir().parent / "theme.name").read_text().strip() or None
-    except OSError:
-        return None
 
 
 def _safe(value) -> bool:

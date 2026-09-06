@@ -59,6 +59,25 @@ Compose loads `docker-compose.override.yml` automatically and **appends** to the
 port list, so `127.0.0.1:8000` keeps working alongside it. The file is
 gitignored — a bind address is specific to your machine.
 
+### Matching your desktop theme (Omarchy)
+
+On an [Omarchy](https://omarchy.org/) desktop the reader can wear the active
+theme's palette, offered as an "Omarchy" option beside Light / Sepia / Dark /
+Auto. Running on the host it just works. In a container the theme directory has
+to be mounted in, so add this to the same `docker-compose.override.yml`:
+
+```yaml
+services:
+  reader:
+    environment:
+      - READER_OMARCHY_THEME_DIR=/omarchy-theme
+    volumes:
+      - ${HOME}/.local/state/omarchy/current/theme:/omarchy-theme:ro
+```
+
+Without it the option simply never appears — the reader is a standalone web app
+and renders with its own palette anywhere else.
+
 Then open `http://100.73.233.28:8000/` on your phone, with Tailscale running on
 both devices. The TTS sidecar stays loopback-bound either way.
 
