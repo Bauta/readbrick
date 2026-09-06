@@ -22,9 +22,30 @@
     <h1>Readbrick</h1>
     <div class="actions">
       <span class="user-pill" id="user-pill" title="Switch user">…</span>
+      <button class="tap label" id="settings-btn" title="Settings" aria-label="Settings">Settings</button>
       <button class="tap" id="upload-btn" aria-label="Upload book">+</button>
     </div>
   </header>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+  <!-- Library settings: only what applies outside a book. Voice, speed and
+       typography belong to the reader and live in its own sheet. -->
+  <aside class="settings-sheet" id="settings-sheet" role="dialog" aria-label="Settings">
+    <div class="sheet-handle"></div>
+    <h2>Settings</h2>
+    <div class="settings-row">
+      <label>Theme</label>
+      <div class="theme-toggle" id="theme-toggle">
+        <button data-theme="light">Light</button>
+        <button data-theme="sepia">Sepia</button>
+        <button data-theme="dark">Dark</button>
+        <button data-theme="auto">Auto</button>
+        <!-- Unhidden only when the server finds an Omarchy palette. -->
+        <button data-theme="omarchy" hidden>Omarchy</button>
+      </div>
+    </div>
+  </aside>
   <main>
     <div id="upload-zone" class="upload-zone" hidden>
       Drop EPUB, PDF, TXT, MOBI, or AZW3 here — or tap to pick a file

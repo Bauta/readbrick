@@ -3,6 +3,7 @@ import { api, session, toast } from './api.js';
 import { state, setSearch } from './library/state.js';
 import { setupUploadZone } from './library/upload.js';
 import { renderLibrary, el } from './library/render.js';
+import { applyTheme, markActiveTheme, revealDesktopTheme } from './theme.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -14,6 +15,7 @@ async function boot() {
     session.user = state.user;
   }
   renderUserPill();
+  setupSettings();
   await loadBooks();
 
   const searchInput = document.querySelector('#library-search');
@@ -37,9 +39,70 @@ async function boot() {
   $('#user-pill').addEventListener('click', openUserPicker);
 }
 
+// First paint uses whatever the last page remembered, so there is no flash
+// while the real preference loads from the server.
 function applyThemeFromPrefs() {
   const cached = localStorage.getItem('reader.theme');
-  if (cached) document.documentElement.dataset.theme = cached;
+  if (cached) applyTheme(cached, null);
+}
+
+// ───── Settings (library) ─────
+//
+// Only what applies outside a book: the theme. Voice, speed and typography
+// belong to the reader and live in its own sheet. This is also where the
+// Omarchy option has to be reachable — until now it only existed inside a
+// book's settings, invisible to anyone who lives in the library view.
+let _themePref = null;
+let _desktop = null;   // { available, mode } from the server, once known
+
+async function setupSettings() {
+  const sheet = $('#settings-sheet');
+  const backdrop = $('#sheet-backdrop');
+  const toggle = $('#theme-toggle');
+  if (!sheet || !backdrop || !toggle) return;
+
+  const openSheet = () => {
+    sheet.classList.add('open');
+    backdrop.hidden = false;
+    requestAnimationFrame(() => backdrop.classList.add('open'));
+  };
+  const closeSheet = () => {
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    setTimeout(() => { backdrop.hidden = true; }, 240);
+  };
+  $('#settings-btn').addEventListener('click', () => {
+    if (sheet.classList.contains('open')) closeSheet();
+    else openSheet();
+  });
+  backdrop.addEventListener('click', closeSheet);
+
+  const paint = () => {
+    applyTheme(_themePref, _desktop);
+    markActiveTheme(toggle, _themePref);
+  };
+
+  toggle.querySelectorAll('button[data-theme]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      _themePref = btn.dataset.theme;
+      paint();
+      if (!state.user) return;
+      try {
+        await api.patchPrefs(state.user.id, { theme: _themePref });
+      } catch {
+        toast("Couldn't save the theme — it will reset next time");
+      }
+    });
+  });
+
+  // The stored preference, then the desktop's word on light/dark. Neither
+  // should stall the library: the cached theme is already painted.
+  if (state.user) {
+    api.getPrefs(state.user.id)
+      .then((prefs) => { _themePref = prefs.theme || 'auto'; paint(); })
+      .catch(() => { _themePref = localStorage.getItem('reader.theme') || 'auto'; paint(); });
+  }
+  revealDesktopTheme(toggle).then((theme) => { _desktop = theme; paint(); });
 }
 
 function renderUserPill() {

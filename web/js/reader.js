@@ -9,6 +9,7 @@ import { applyQuoteHighlights, setupQuoteSelection, setupQuotePopover } from './
 import { initAutoscroll } from './reader/autoscroll.js';
 import { initChromeAutoHide } from './reader/chrome-visibility.js';
 import { initSeekGesture } from './reader/seek-gesture.js';
+import { applyTheme as applyThemePref, markActiveTheme, revealDesktopTheme as revealDesktop } from '../js/theme.js';
 import {
   initMediaSession, cumulativeWords, totalWords, estimateDuration, estimatePosition,
   paragraphAtPosition,
@@ -394,9 +395,7 @@ function applyPrefs() {
   $('#text-width').value = String(tw);
   $('#tw-val').textContent = String(tw);
 
-  $$('.theme-toggle button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.theme === state.prefs.theme);
-  });
+  markActiveTheme($('.theme-toggle'), state.prefs.theme);
   renderFontSelect(fontFamily);
 
   const showImages = (state.prefs.show_images ?? 1) ? true : false;
@@ -711,23 +710,16 @@ function ensurePrefetchRing() {
 // and used by the module-level play() which fires on user gesture.
 let ensureEngine = async () => {};
 
-// Which side the desktop is on ('dark' | 'light'), when it says. Declared up
-// here because applyTheme reads it, and that runs before the fetch resolves.
-let _desktopMode = null;
+// The server's answer about the desktop — { available, mode } — once known.
+// Declared up here because applyTheme reads it before the fetch resolves.
+let _desktop = null;
 
 // Just the theme attribute — deliberately not the whole of applyPrefs, which
 // re-injects the reader font and would fire a second network load (and a
-// second failure toast) every time the theme is re-applied.
+// second failure toast) every time the theme is re-applied. The resolution
+// rules live in theme.js, shared with the library.
 function applyTheme() {
-  // "Auto" means "match what I'm looking at". Where the desktop says which
-  // side it is on, that beats the browser's colour-scheme preference: a
-  // freshly created browser profile has no stored preference at all, which is
-  // how a dark desktop ended up with a white reader.
-  const applied = (state.prefs.theme === 'auto' && _desktopMode)
-    ? _desktopMode
-    : state.prefs.theme;
-  document.documentElement.dataset.theme = applied;
-  localStorage.setItem('reader.theme', state.prefs.theme);
+  applyThemePref(state.prefs.theme, _desktop);
 }
 
 // ───── Desktop palette (Omarchy) ─────
@@ -736,17 +728,9 @@ function applyTheme() {
 // them: the reader is used on phones too, where the desktop's theme means
 // nothing. The colours themselves arrive as /api/theme.css.
 async function revealDesktopTheme() {
-  const btn = $('#theme-omarchy');
-  if (!btn) return;
-  const theme = await api.getTheme();
-  if (theme.available) {
-    btn.hidden = false;
-    if (theme.name) btn.title = `Match the desktop theme (${theme.name})`;
-    if (theme.mode === 'dark' || theme.mode === 'light') {
-      _desktopMode = theme.mode;
-      applyTheme();   // re-apply now that Auto has a better answer
-    }
-  } else if (state.prefs?.theme === 'omarchy') {
+  _desktop = await revealDesktop($('.theme-toggle'));
+  applyTheme();   // re-apply now that Auto has a better answer
+  if (!theme.available && state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —
     // fall back rather than render an unstyled page. Fire-and-forget: the
     // fallback is cosmetic, and boot() must not stall on it.
