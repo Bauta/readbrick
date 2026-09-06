@@ -1658,12 +1658,16 @@ body.lightbox-open { overflow: hidden; }
    the text sat in a 776px column. Keep the controls under the words. */
 .reader-footer-progress,
 .reader-footer-controls {
+  /* width: 100% matters: the footer is a column flexbox, and a max-width
+     alone shrink-wraps the row to its content — the progress track became a
+     stub and the text clipped to "Introduction · …". */
+  width: 100%;
   max-width: 760px;
   margin-left: auto;
   margin-right: auto;
 }
 #prog-text {
-  max-width: 55%;
+  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
