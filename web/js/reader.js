@@ -730,7 +730,7 @@ function applyTheme() {
 async function revealDesktopTheme() {
   _desktop = await revealDesktop($('.theme-toggle'));
   applyTheme();   // re-apply now that Auto has a better answer
-  if (!theme.available && state.prefs?.theme === 'omarchy') {
+  if (!_desktop?.available && state.prefs?.theme === 'omarchy') {
     // Stored preference for a palette this machine can no longer supply —
     // fall back rather than render an unstyled page. Fire-and-forget: the
     // fallback is cosmetic, and boot() must not stall on it.
